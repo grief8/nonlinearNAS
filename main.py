@@ -19,7 +19,8 @@ if __name__ == "__main__":
     # configurations of the model
     parser.add_argument('--net', default='resnet18', type=str, help='net type')
     parser.add_argument("--worker-id", default=2, type=int)
-
+    parser.add_argument("--pretrained", default=False, action="store_true")
+    
     parser.add_argument("--no_decay_keys", default='bn', type=str, choices=[None, 'bn', 'bn#bias'])
     parser.add_argument('--grad_reg_loss_type', default='add#linear', type=str, choices=['add#linear', 'mul#log'])
     parser.add_argument('--grad_reg_loss_lambda', default=1e-1, type=float)  # grad_reg_loss_params

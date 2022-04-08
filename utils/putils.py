@@ -142,6 +142,6 @@ def get_nas_network(args, class_flag=False):
         sys.exit()
 
     if not class_flag:
-        net = net(args.pretrained)
+        net = net(pretrained=args.pretrained)
 
     return net
