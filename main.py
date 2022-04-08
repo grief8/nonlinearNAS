@@ -31,7 +31,7 @@ if __name__ == "__main__":
     # configurations of imagenet dataset
     parser.add_argument("--data_path", default='/home/lifabing/data/imagenet/', type=str)
     parser.add_argument("--train_batch_size", default=256, type=int)
-    parser.add_argument("--test_batch_size", default=512, type=int)
+    parser.add_argument("--test_batch_size", default=1024, type=int)
     parser.add_argument("--n_worker", default=32, type=int)
     parser.add_argument("--resize_scale", default=0.08, type=float)
     parser.add_argument("--distort_color", default='normal', type=str, choices=['normal', 'strong', 'None'])
@@ -113,6 +113,7 @@ if __name__ == "__main__":
                                    optimizer=optimizer,
                                    metrics=lambda output, target: accuracy(output, target, topk=(1, 5,)),
                                    num_epochs=120,
+                                   batch_size=args.train_batch_size,
                                    log_frequency=10,
                                    grad_reg_loss_type=args.grad_reg_loss_type, 
                                    grad_reg_loss_params=grad_reg_loss_params, 
