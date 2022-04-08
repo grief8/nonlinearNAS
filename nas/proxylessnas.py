@@ -169,8 +169,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
                  batch_size=64, workers=4, device=None, log_frequency=None,
                  arc_learning_rate=1.0E-3,
                  grad_reg_loss_type=None, grad_reg_loss_params=None,
-                 applied_hardware=None, dummy_input=(1, 3, 224, 224),
-                 ref_latency=65.0):
+                 applied_hardware=None, dummy_input=(1, 3, 224, 224)):
         self.model = model
         self.loss = loss
         self.metrics = metrics
@@ -190,7 +189,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
             self.latency_estimator = NonlinearLatencyEstimator({'nonlinear': 3.0, 'linear': 0.5}, self.model, dummy_input)
         self.reg_loss_type = grad_reg_loss_type
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
-        self.ref_latency = ref_latency
+        self.ref_latency = self.latency_estimator.linear_lat + self.latency_estimator.nonlinear_lat
 
         self.model.to(self.device)
         self.nas_modules = []
@@ -255,7 +254,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
                              self.num_epochs, step + 1, len(self.train_loader), meters)
 
     def _logits_and_loss_for_arch_update(self, X, y):
-        ''' return logits and loss for architecture parameter update '''
+        """ return logits and loss for architecture parameter update """
         logits = self.model(X)
         ce_loss = self.loss(logits, y)
         if not self.latency_estimator:
