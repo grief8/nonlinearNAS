@@ -18,9 +18,11 @@ if __name__ == "__main__":
     parser = ArgumentParser("proxylessnas")
     # configurations of the model
     parser.add_argument('--net', default='resnet18', type=str, help='net type')
-    parser.add_argument("--worker-id", default=2, type=int)
+    parser.add_argument("--worker_id", default=2, type=int)
     parser.add_argument("--pretrained", default=False, action="store_true")
-    
+    parser.add_argument("--epochs", default=120, type=int)
+    parser.add_argument("--log_frequency", default=10, type=int)
+
     parser.add_argument("--no_decay_keys", default='bn', type=str, choices=[None, 'bn', 'bn#bias'])
     parser.add_argument('--grad_reg_loss_type', default='add#linear', type=str, choices=['add#linear', 'mul#log'])
     parser.add_argument('--grad_reg_loss_lambda', default=1e-1, type=float)  # grad_reg_loss_params
@@ -39,10 +41,9 @@ if __name__ == "__main__":
     parser.add_argument("--train_mode", default='search', type=str, choices=['search', 'retrain'])
     # configurations for search
     parser.add_argument("--checkpoint_path", default='./checkpoints/resnet18/search_net.pt', type=str)
-    parser.add_argument("--arch_path", default='./checkpoints/resnet18/arch_path.pt', type=str)
     parser.add_argument("--no-warmup", dest='warmup', action='store_false')
     # configurations for retrain
-    parser.add_argument("--exported_arch_path", default=None, type=str)
+    parser.add_argument("--exported_arch_path", default='./checkpoints/resnet18/checkpoint.json', type=str)
 
     args = parser.parse_args()
     torch.cuda.set_device(args.worker_id)
@@ -112,9 +113,9 @@ if __name__ == "__main__":
                                    dataset=dataset,
                                    optimizer=optimizer,
                                    metrics=lambda output, target: accuracy(output, target, topk=(1, 5,)),
-                                   num_epochs=120,
+                                   num_epochs=args.epochs,
                                    batch_size=args.train_batch_size,
-                                   log_frequency=10,
+                                   log_frequency=args.log_frequency,
                                    grad_reg_loss_type=args.grad_reg_loss_type, 
                                    grad_reg_loss_params=grad_reg_loss_params, 
                                    applied_hardware=args.applied_hardware, dummy_input=(1, 3, 224, 224))
