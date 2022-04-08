@@ -22,9 +22,9 @@ class NonlinearLatencyEstimator:
     def _get_latency_table(self):
         linear_lat = 0.0
         non_lat = 0.0
-        index = 0
+        index = 1
         for layer in self.summary:
-            if layer.find('LayerChoice'):
+            if layer.find('LayerChoice') != -1:
                 continue
             nonlinear_flag = False
             for op in self.ops:
@@ -48,12 +48,12 @@ class NonlinearLatencyEstimator:
         lat = self.linear_lat
         for module_name, probs in current_architecture_prob.items():
             assert len(probs) == len(self.block_latency_table[module_name])
-            lat += torch.sum(torch.tensor([probs[i] * self.block_latency_table[module_name][str(i)]
+            lat += torch.sum(torch.tensor([probs[i] * self.block_latency_table[module_name][i]
                                            for i in range(len(probs))]))
         return lat
 
     def export_latency(self, current_architecture):
         lat = self.linear_lat
         for module_name, selected_module in current_architecture.items():
-            lat += self.block_latency_table[module_name][str(selected_module)]
+            lat += self.block_latency_table[module_name][selected_module]
         return lat
