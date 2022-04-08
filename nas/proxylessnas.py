@@ -18,7 +18,7 @@ from nas.estimator import NonlinearLatencyEstimator
 _logger = logging.getLogger(__name__)
 rq = time.strftime('%Y%m%d%H%M', time.localtime(time.time()))
 log_path = os.path.dirname('/home/lifabing/projects/nonlinearNAS/logs/')
-logfile = log_path + rq + '.log'
+logfile = os.path.join(log_path, rq + '.log')
 fh = logging.FileHandler(logfile, mode='w')
 fh.setLevel(logging.INFO) 
 formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
