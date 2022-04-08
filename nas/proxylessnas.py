@@ -16,14 +16,6 @@ from nas.estimator import NonlinearLatencyEstimator
 
 
 _logger = logging.getLogger(__name__)
-rq = time.strftime('%Y%m%d%H%M', time.localtime(time.time()))
-log_path = os.path.dirname('/home/lifabing/projects/nonlinearNAS/logs/')
-logfile = os.path.join(log_path, rq + '.log')
-fh = logging.FileHandler(logfile, mode='w')
-fh.setLevel(logging.INFO) 
-formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-fh.setFormatter(formatter)
-_logger.addHandler(fh)
 
 
 class ArchGradientFunction(torch.autograd.Function):
@@ -203,6 +195,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.ctrl_optim = torch.optim.Adam([m.alpha for _, m in self.nas_modules], arc_learning_rate,
                                            weight_decay=0, betas=(0, 0.999), eps=1e-8)
         self._init_dataloader()
+        self._init_logger()
 
     def _init_dataloader(self):
         n_train = len(self.dataset)
@@ -218,6 +211,16 @@ class ProxylessTrainer(BaseOneShotTrainer):
                                                         batch_size=self.batch_size,
                                                         sampler=valid_sampler,
                                                         num_workers=self.workers)
+
+    def _init_logger(self):
+        rq = time.strftime('%Y%m%d%H%M', time.localtime(time.time()))
+        log_path = os.path.dirname('/home/lifabing/projects/nonlinearNAS/logs/')
+        logfile = os.path.join(log_path, self.reg_loss_type, rq + '.log')
+        fh = logging.FileHandler(logfile, mode='w')
+        fh.setLevel(logging.INFO)
+        formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+        fh.setFormatter(formatter)
+        _logger.addHandler(fh)
 
     def _train_one_epoch(self, epoch):
         self.model.train()
