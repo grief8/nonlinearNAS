@@ -76,7 +76,7 @@ class MobileNet(nn.Module):
                          output channels N becomes αN.
     """
 
-    def __init__(self, width_multiplier=1, class_num=100):
+    def __init__(self, width_multiplier=1, class_num=1000):
         super().__init__()
 
         alpha = width_multiplier
@@ -213,5 +213,5 @@ class MobileNet(nn.Module):
         return x
 
 
-def mobilenet(alpha=1, class_num=100, pretrained=False):
+def mobilenet(alpha=1, class_num=1000, pretrained=False):
     return MobileNet(alpha, class_num)

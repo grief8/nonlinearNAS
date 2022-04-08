@@ -28,7 +28,7 @@ class VGG(nn.Module):
     def __init__(
         self,
         features: nn.Module,
-        num_classes: int = 100,
+        num_classes: int = 1000,
         init_weights: bool = True
     ) -> None:
         super(VGG, self).__init__()
@@ -99,7 +99,7 @@ def _vgg(arch: str, cfg: str, batch_norm: bool, pretrained: bool, progress: bool
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls[arch],
                                               progress=progress)
-        num_classes = 100 if kwargs.get('num_classes') is None else kwargs.get('num_classes')
+        num_classes = 1000 if kwargs.get('num_classes') is None else kwargs.get('num_classes')
         state_dict['classifier.6.weight'] = torch.mean(state_dict['classifier.6.weight'], dim=0, keepdim=True).repeat(num_classes, 1)
         state_dict['classifier.6.bias'] = torch.mean(state_dict['classifier.6.bias'], dim=0, keepdim=True).repeat(num_classes)
         model.load_state_dict(state_dict)
