@@ -25,7 +25,6 @@ if __name__ == "__main__":
     parser.add_argument('--grad_reg_loss_lambda', default=1e-1, type=float)  # grad_reg_loss_params
     parser.add_argument('--grad_reg_loss_alpha', default=0.2, type=float)  # grad_reg_loss_params
     parser.add_argument('--grad_reg_loss_beta',  default=0.3, type=float)  # grad_reg_loss_params
-    # parser.add_argument("--applied_hardware", default='cortexA76cpu_tflite21', type=str, help='the hardware to predict model latency')
     parser.add_argument("--applied_hardware", default=None, type=str, help='the hardware to predict model latency')
     parser.add_argument("--reference_latency", default=None, type=float, help='the reference latency in specified hardware')
     # configurations of imagenet dataset
@@ -38,8 +37,8 @@ if __name__ == "__main__":
     # configurations for training mode
     parser.add_argument("--train_mode", default='search', type=str, choices=['search', 'retrain'])
     # configurations for search
-    parser.add_argument("--checkpoint_path", default='./search_mobile_net.pt', type=str)
-    parser.add_argument("--arch_path", default='./arch_path.pt', type=str)
+    parser.add_argument("--checkpoint_path", default='./checkpoints/resnet18/search_net.pt', type=str)
+    parser.add_argument("--arch_path", default='./checkpoints/resnet18/arch_path.pt', type=str)
     parser.add_argument("--no-warmup", dest='warmup', action='store_false')
     # configurations for retrain
     parser.add_argument("--exported_arch_path", default=None, type=str)
@@ -123,10 +122,10 @@ if __name__ == "__main__":
         json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
         import pickle
         try:
-            with open('trainer.o', 'rb') as f:
+            with open(args.checkpoint_path, 'wb') as f:
                 pickle.dump(trainer, f)
         except:
-            with open('trainer.o', 'rb') as f:
+            with open(args.checkpoint_path, 'wb') as f:
                 pickle.dump(trainer, f, 1)
     elif args.train_mode == 'retrain':
         # this is retrain

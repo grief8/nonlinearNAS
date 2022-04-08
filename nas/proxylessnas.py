@@ -23,6 +23,7 @@ fh = logging.FileHandler(logfile, mode='w')
 fh.setLevel(logging.INFO)  
 _logger.addHandler(fh)
 
+
 class ArchGradientFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x, binary_gates, run_func, backward_func):
@@ -184,7 +185,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
         if applied_hardware:
             self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input)
         else:
-            self.latency_estimator = None
+            self.latency_estimator = NonlinearLatencyEstimator({'nonlinear': 3.0, 'linear': 0.5}, self.model, dummy_input)
         self.reg_loss_type = grad_reg_loss_type
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
         self.ref_latency = ref_latency
