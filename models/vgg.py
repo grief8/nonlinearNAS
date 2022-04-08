@@ -36,10 +36,10 @@ class VGG(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
         self.classifier = nn.Sequential(
             nn.Linear(512 * 7 * 7, 4096),
-            nnp.LayerChoice([nn.ReLU(True), nn.Identity()]),
+            nnp.LayerChoice([nn.ReLU(), nn.Identity()]),
             nn.Dropout(),
             nn.Linear(4096, 4096),
-            nnp.LayerChoice([nn.ReLU(True), nn.Identity()]),
+            nnp.LayerChoice([nn.ReLU(), nn.Identity()]),
             nn.Dropout(),
             nn.Linear(4096, num_classes),
         )
@@ -77,9 +77,9 @@ def make_layers(cfg: List[Union[str, int]], batch_norm: bool = False) -> nn.Sequ
             v = cast(int, v)
             conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
             if batch_norm:
-                layers += [conv2d, nn.BatchNorm2d(v), nnp.LayerChoice([nn.ReLU(True), nn.Identity()])]
+                layers += [conv2d, nn.BatchNorm2d(v), nnp.LayerChoice([nn.ReLU(), nn.Identity()])]
             else:
-                layers += [conv2d, nnp.LayerChoice([nn.ReLU(True), nn.Identity()])]
+                layers += [conv2d, nnp.LayerChoice([nn.ReLU(), nn.Identity()])]
             in_channels = v
     return nn.Sequential(*layers)
 
