@@ -215,7 +215,10 @@ class ProxylessTrainer(BaseOneShotTrainer):
     def _init_logger(self):
         rq = time.strftime('%Y%m%d%H%M', time.localtime(time.time()))
         log_path = os.path.dirname('/home/lifabing/projects/nonlinearNAS/logs/')
-        logfile = os.path.join(log_path, self.reg_loss_type, rq + '.log')
+        log_path = os.path.join(log_path, self.reg_loss_type)
+        if not os.path.exists(log_path):
+            os.mkdir(log_path)
+        logfile = os.path.join(log_path, rq + '.log')
         fh = logging.FileHandler(logfile, mode='w')
         fh.setLevel(logging.INFO)
         formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
