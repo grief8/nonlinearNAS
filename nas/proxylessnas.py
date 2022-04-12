@@ -4,6 +4,7 @@
 import os
 import logging
 import time
+import pickle
 
 import torch
 import torch.nn as nn
@@ -161,7 +162,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
                  batch_size=64, workers=4, device=None, log_frequency=None,
                  arc_learning_rate=1.0E-3,
                  grad_reg_loss_type=None, grad_reg_loss_params=None,
-                 applied_hardware=None, dummy_input=(1, 3, 224, 224)):
+                 applied_hardware=None, dummy_input=(1, 3, 224, 224),
+                 checkpoint_path=None):
         self.model = model
         self.loss = loss
         self.metrics = metrics
@@ -173,6 +175,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.workers = workers
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
         self.log_frequency = log_frequency
+
+        self.checkpoint_path = checkpoint_path
 
         # latency predictor
         if applied_hardware:
@@ -304,6 +308,9 @@ class ProxylessTrainer(BaseOneShotTrainer):
     def fit(self):
         for i in range(self.num_epochs):
             self._train_one_epoch(i)
+            if self.checkpoint_path is not None:
+                with open(self.checkpoint_path, 'wb') as f:
+                    pickle.dump((self.model, self.nas_modules), f)
 
     @torch.no_grad()
     def export(self):

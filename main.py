@@ -119,7 +119,8 @@ if __name__ == "__main__":
                                    log_frequency=args.log_frequency,
                                    grad_reg_loss_type=args.grad_reg_loss_type, 
                                    grad_reg_loss_params=grad_reg_loss_params, 
-                                   applied_hardware=args.applied_hardware, dummy_input=(1, 3, 224, 224))
+                                   applied_hardware=args.applied_hardware, dummy_input=(1, 3, 224, 224),
+                                   checkpoint_path=args.checkpoint_path)
         trainer.fit()
         print('Final architecture:', trainer.export())
         json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
