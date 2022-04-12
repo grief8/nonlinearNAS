@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 from argparse import ArgumentParser
+import pickle
 
 import torch
 from torchvision import transforms
@@ -122,13 +123,15 @@ if __name__ == "__main__":
         trainer.fit()
         print('Final architecture:', trainer.export())
         json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
-        import pickle
         try:
             with open(args.checkpoint_path, 'wb') as f:
                 pickle.dump(trainer, f)
         except:
             with open(args.checkpoint_path, 'wb') as f:
                 pickle.dump(trainer, f, 1)
+        finally:
+            with open(args.checkpoint_path.strip('.json') + '.pth', 'wb') as f:
+                pickle.dump(trainer.model, f)
     elif args.train_mode == 'retrain':
         # this is retrain
         print('this is retrain')
