@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 from argparse import ArgumentParser
+import pickle
 
 import torch
 from torchvision import transforms
@@ -17,8 +18,8 @@ logger = logging.getLogger('nni_proxylessnas')
 if __name__ == "__main__":
     parser = ArgumentParser("proxylessnas")
     # configurations of the model
-    parser.add_argument('--net', default='resnet18', type=str, help='net type')
-    parser.add_argument("--worker_id", default=2, type=int)
+    parser.add_argument('--net', default='vgg16', type=str, help='net type')
+    parser.add_argument("--worker_id", default=0, type=int)
     parser.add_argument("--pretrained", default=False, action="store_true")
     parser.add_argument("--epochs", default=120, type=int)
     parser.add_argument("--log_frequency", default=10, type=int)
@@ -32,7 +33,7 @@ if __name__ == "__main__":
     parser.add_argument("--reference_latency", default=None, type=float, help='the reference latency in specified hardware')
     # configurations of imagenet dataset
     parser.add_argument("--data_path", default='/home/lifabing/data/imagenet/', type=str)
-    parser.add_argument("--train_batch_size", default=256, type=int)
+    parser.add_argument("--train_batch_size", default=48, type=int)
     parser.add_argument("--test_batch_size", default=1024, type=int)
     parser.add_argument("--n_worker", default=32, type=int)
     parser.add_argument("--resize_scale", default=0.08, type=float)
@@ -122,14 +123,18 @@ if __name__ == "__main__":
         trainer.fit()
         print('Final architecture:', trainer.export())
         json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
-        import pickle
         try:
             with open(args.checkpoint_path, 'wb') as f:
                 pickle.dump(trainer, f)
         except:
             with open(args.checkpoint_path, 'wb') as f:
                 pickle.dump(trainer, f, 1)
+        finally:
+            with open(args.checkpoint_path.strip('.json') + '.pth', 'wb') as f:
+                pickle.dump(trainer.model, f)
     elif args.train_mode == 'retrain':
         # this is retrain
-        trainer = Retrain(model, optimizer, device, data_provider, n_epochs=300)
+        print('this is retrain')
+        trainer = Retrain(model, optimizer, device, data_provider, n_epochs=300,
+                          export_path=args.exported_arch_path.strip('.json') + '.pth')
         trainer.run()
