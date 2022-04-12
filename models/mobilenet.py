@@ -65,7 +65,7 @@ class BasicConv2d(nn.Module):
         return x
 
 
-@model_wrapper
+# @model_wrapper
 class MobileNet(nn.Module):
     """
     Args:
