@@ -131,6 +131,7 @@ if __name__ == "__main__":
                 pickle.dump(trainer, f, 1)
     elif args.train_mode == 'retrain':
         # this is retrain
+        print('this is retrain')
         trainer = Retrain(model, optimizer, device, data_provider, n_epochs=300,
                           export_path=args.exported_arch_path.strip('.json') + '.pth')
         trainer.run()
