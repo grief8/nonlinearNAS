@@ -32,7 +32,7 @@ def accuracy(output, target, topk=(1,)):
 
 
 class Retrain:
-    def __init__(self, model, optimizer, device, data_provider, n_epochs):
+    def __init__(self, model, optimizer, device, data_provider, n_epochs, export_path):
         self.model = model
         self.optimizer = optimizer
         self.device = device
@@ -41,6 +41,7 @@ class Retrain:
         self.test_loader = data_provider.test
         self.n_epochs = n_epochs
         self.criterion = nn.CrossEntropyLoss()
+        self.export_path = export_path
 
     def run(self):
         self.model = torch.nn.DataParallel(self.model)
@@ -51,6 +52,7 @@ class Retrain:
         self.validate(is_test=False)
         # test
         self.validate(is_test=True)
+        torch.save(self.model, self.export_path)
 
     def train_one_epoch(self, adjust_lr_func, train_log_func, label_smoothing=0.1):
         batch_time = AverageMeter('batch_time')
