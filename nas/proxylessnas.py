@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
-
+import json
 import os
 import logging
 import time
@@ -161,7 +161,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
                  batch_size=64, workers=4, device=None, log_frequency=None,
                  arc_learning_rate=1.0E-3,
                  grad_reg_loss_type=None, grad_reg_loss_params=None,
-                 applied_hardware=None, dummy_input=(1, 3, 224, 224)):
+                 applied_hardware=None, dummy_input=(1, 3, 224, 224),
+                 checkpoint_path=None):
         self.model = model
         self.loss = loss
         self.metrics = metrics
@@ -173,6 +174,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.workers = workers
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
         self.log_frequency = log_frequency
+
+        self.checkpoint_path = checkpoint_path
 
         # latency predictor
         if applied_hardware:
@@ -303,6 +306,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
 
     def fit(self):
         for i in range(self.num_epochs):
+            if self.checkpoint_path is not None:
+                json.dump(self.export_prob(), open(self.checkpoint_path + '.prob', 'w'))
             self._train_one_epoch(i)
 
     @torch.no_grad()
@@ -318,5 +323,5 @@ class ProxylessTrainer(BaseOneShotTrainer):
         result = dict()
         for name, module in self.nas_modules:
             if name not in result:
-                result[name] = module.export_prob()
+                result[name] = module.export_prob().tolist()
         return result
