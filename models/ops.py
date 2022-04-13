@@ -5,7 +5,6 @@ import nni.retiarii.nn.pytorch as nn
 
 from utils.putils import get_same_padding, build_activation
 
-
 OPS = {
     'Identity': lambda in_C, out_C, stride: IdentityLayer(in_C, out_C, ops_order='weight_bn_act'),
     'Zero': lambda in_C, out_C, stride: ZeroLayer(stride=stride),
@@ -31,7 +30,7 @@ OPS = {
 
 
 class MobileInvertedResidualBlock(nn.Module):
-    
+
     def __init__(self, mobile_inverted_conv, shortcut, op_candidates_list):
         super(MobileInvertedResidualBlock, self).__init__()
 
@@ -42,14 +41,14 @@ class MobileInvertedResidualBlock(nn.Module):
     def forward(self, x):
         out = self.mobile_inverted_conv(x)
         return self.zero_layer_module(x, out)
-        
+
 
 @basic_unit
 class ZeroLayerModule(nn.Module):
     def __init__(self, shortcut):
         super().__init__()
         self.shortcut = shortcut
-        
+
     def forward(self, x, out):
         if torch.sum(torch.abs(out)).item() == 0:
             if x.size() == out.size():
@@ -76,8 +75,9 @@ class ShuffleLayer(nn.Module):
         x = x.view(batchsize, -1, height, width)
         return x
 
+
 class Base2DLayer(nn.Module):
-    
+
     def __init__(self, in_channels, out_channels,
                  use_bn=True, act_func='relu', dropout_rate=0, ops_order='weight_bn_act'):
         super(Base2DLayer, self).__init__()
@@ -264,6 +264,7 @@ class MBInvertedConvLayer(nn.Module):
     """
     This layer is introduced in section 4.2 in the paper https://arxiv.org/pdf/1812.00332.pdf
     """
+
     def __init__(self, in_channels, out_channels,
                  kernel_size=3, stride=1, expand_ratio=6, mid_channels=None):
         super(MBInvertedConvLayer, self).__init__()

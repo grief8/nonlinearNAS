@@ -2,15 +2,16 @@ import torch
 import nni.retiarii.nn.pytorch as nn
 import math
 
-import ops
+import models.ops as ops
 import utils.putils as putils
 from nni.retiarii.nn.pytorch import LayerChoice
 
+
 class SearchMobileNet(nn.Module):
     def __init__(self,
-                 width_stages=[24,40,80,96,192,320],
-                 n_cell_stages=[4,4,4,4,4,1],
-                 stride_stages=[2,2,2,1,2,1],
+                 width_stages=[24, 40, 80, 96, 192, 320],
+                 n_cell_stages=[4, 4, 4, 4, 4, 1],
+                 stride_stages=[2, 2, 2, 1, 2, 1],
                  width_mult=1, n_classes=1000,
                  dropout_rate=0, bn_param=(0.1, 1e-3)):
         """
@@ -20,7 +21,7 @@ class SearchMobileNet(nn.Module):
             width (output channels) of each cell stage in the block
         n_cell_stages: str
             number of cells in each cell stage
-        stride_strages: str
+        stride_stages: str
             stride of each cell stage in the block
         width_mult : int
             the scale factor of width
@@ -32,7 +33,8 @@ class SearchMobileNet(nn.Module):
         for i in range(len(width_stages)):
             width_stages[i] = putils.make_divisible(width_stages[i] * width_mult, 8)
         # first conv
-        first_conv = ops.ConvLayer(3, input_channel, kernel_size=3, stride=2, use_bn=True, act_func='relu6', ops_order='weight_bn_act')
+        first_conv = ops.ConvLayer(3, input_channel, kernel_size=3, stride=2, use_bn=True, act_func='relu6',
+                                   ops_order='weight_bn_act')
         # first block
         first_block_conv = ops.OPS['3x3_MBConv1'](input_channel, first_cell_width, 1)
         first_block = first_block_conv
@@ -73,7 +75,8 @@ class SearchMobileNet(nn.Module):
 
         # feature mix layer
         last_channel = putils.make_devisible(1280 * width_mult, 8) if width_mult > 1.0 else 1280
-        feature_mix_layer = ops.ConvLayer(input_channel, last_channel, kernel_size=1, use_bn=True, act_func='relu6', ops_order='weight_bn_act', )
+        feature_mix_layer = ops.ConvLayer(input_channel, last_channel, kernel_size=1, use_bn=True, act_func='relu6',
+                                          ops_order='weight_bn_act', )
         classifier = ops.LinearLayer(last_channel, n_classes, dropout_rate=dropout_rate)
 
         self.first_conv = first_conv
