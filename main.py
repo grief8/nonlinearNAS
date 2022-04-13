@@ -124,15 +124,7 @@ if __name__ == "__main__":
         trainer.fit()
         print('Final architecture:', trainer.export())
         json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
-        try:
-            with open(args.checkpoint_path, 'wb') as f:
-                pickle.dump(trainer, f)
-        except:
-            with open(args.checkpoint_path, 'wb') as f:
-                pickle.dump(trainer, f, 1)
-        finally:
-            with open(args.checkpoint_path.strip('.json') + '.pth', 'wb') as f:
-                pickle.dump(trainer.model, f)
+        json.dump(trainer.export_prob(), open(args.exported_arch_path + '.prob', 'w'))
     elif args.train_mode == 'retrain':
         # this is retrain
         print('this is retrain')
