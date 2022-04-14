@@ -59,6 +59,7 @@ class NonlinearLatencyEstimator:
                 linear_comm, nonlinear = 0.0, 0.0
             else:
                 linear_comm += self.block_latency_table[key][0]
+        lat += linear_comm
         return lat
 
     def _cal_normal_latency(self, current_architecture_prob):

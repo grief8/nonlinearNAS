@@ -1,6 +1,6 @@
 import torch
-import torch.nn as nn
-import nni.retiarii.nn.pytorch as nnp
+# import torch.nn as nn
+import nni.retiarii.nn.pytorch as nn
 from torchvision._internally_replaced_utils import load_state_dict_from_url
 from typing import Union, List, Dict, Any, cast
 
@@ -36,15 +36,15 @@ class VGG(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
         self.classifier = nn.Sequential(
             nn.Linear(512 * 7 * 7, 4096),
-            nnp.LayerChoice([nn.ReLU(), nn.Identity()]),
+            nn.LayerChoice([nn.ReLU(), nn.Identity()]),
             nn.Dropout(),
             nn.Linear(4096, 4096),
-            nnp.LayerChoice([nn.ReLU(), nn.Identity()]),
+            nn.LayerChoice([nn.ReLU(), nn.Identity()]),
             nn.Dropout(),
             nn.Linear(4096, num_classes),
         )
-        if init_weights:
-            self._initialize_weights()
+        # if init_weights:
+        #     self._initialize_weights()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)
@@ -72,14 +72,14 @@ def make_layers(cfg: List[Union[str, int]], batch_norm: bool = False) -> nn.Sequ
     in_channels = 3
     for v in cfg:
         if v == 'M':
-            layers += [nnp.LayerChoice([nn.MaxPool2d(kernel_size=2, stride=2), nn.AvgPool2d(kernel_size=2, stride=2)])]
+            layers += [nn.LayerChoice([nn.MaxPool2d(kernel_size=2, stride=2), nn.AvgPool2d(kernel_size=2, stride=2)])]
         else:
             v = cast(int, v)
             conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
             if batch_norm:
-                layers += [conv2d, nn.BatchNorm2d(v), nnp.LayerChoice([nn.ReLU(), nn.Identity()])]
+                layers += [conv2d, nn.BatchNorm2d(v), nn.LayerChoice([nn.ReLU(), nn.Identity()])]
             else:
-                layers += [conv2d, nnp.LayerChoice([nn.ReLU(), nn.Identity()])]
+                layers += [conv2d, nn.LayerChoice([nn.ReLU(), nn.Identity()])]
             in_channels = v
     return nn.Sequential(*layers)
 

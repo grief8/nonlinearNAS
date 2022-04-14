@@ -16,6 +16,7 @@ from nas.estimator import NonlinearLatencyEstimator
 
 
 _logger = logging.getLogger(__name__)
+torch.autograd.set_detect_anomaly(True)
 
 
 class ArchGradientFunction(torch.autograd.Function):
@@ -199,7 +200,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.optimizer = optimizer
         # we do not support deduplicate control parameters with same label (like DARTS) yet.
         self.ctrl_optim = torch.optim.Adam([m.alpha for _, m in self.nas_modules], arc_learning_rate,
-                                           weight_decay=0, betas=(0, 0.999), eps=1e-8)
+                                           weight_decay=0.01, betas=(0, 0.999), eps=1e-8)
         self._init_dataloader()
         self._init_logger()
 
