@@ -162,7 +162,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
                  arc_learning_rate=1.0E-3,
                  grad_reg_loss_type=None, grad_reg_loss_params=None,
                  applied_hardware=None, dummy_input=(1, 3, 224, 224),
-                 checkpoint_path=None):
+                 checkpoint_path=None, strategy='latency'):
         self.model = model
         self.loss = loss
         self.metrics = metrics
@@ -179,9 +179,12 @@ class ProxylessTrainer(BaseOneShotTrainer):
 
         # latency predictor
         if applied_hardware:
-            self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input)
+            self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input, 
+                                                               strategy=strategy)
         else:
-            self.latency_estimator = NonlinearLatencyEstimator({'nonlinear': 3.0, 'linear': 0.5}, self.model, dummy_input)
+            self.latency_estimator = NonlinearLatencyEstimator({'nonlinear': 3.0, 'linear': 0.5, 'communication': 4.0}, 
+                                                               self.model, 
+                                                               dummy_input, strategy=strategy)
         self.reg_loss_type = grad_reg_loss_type
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
         self.ref_latency = self.latency_estimator.linear_lat + self.latency_estimator.nonlinear_lat

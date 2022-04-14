@@ -43,6 +43,7 @@ if __name__ == "__main__":
     # configurations for search
     parser.add_argument("--checkpoint_path", default='./checkpoints/resnet18/search_net.pt', type=str)
     parser.add_argument("--no-warmup", dest='warmup', action='store_false')
+    parser.add_argument("--strategy", default='latency', type=str, choices=['latency', 'throughput'])
     # configurations for retrain
     parser.add_argument("--exported_arch_path", default='./checkpoints/resnet18/checkpoint.json', type=str)
 
@@ -120,7 +121,8 @@ if __name__ == "__main__":
                                    grad_reg_loss_type=args.grad_reg_loss_type, 
                                    grad_reg_loss_params=grad_reg_loss_params, 
                                    applied_hardware=args.applied_hardware, dummy_input=(1, 3, 224, 224),
-                                   checkpoint_path=args.exported_arch_path)
+                                   checkpoint_path=args.exported_arch_path,
+                                   strategy=args.strategy)
         trainer.fit()
         print('Final architecture:', trainer.export())
         json.dump(trainer.export(), open(args.exported_arch_path, 'w'))

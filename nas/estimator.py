@@ -7,7 +7,7 @@ _logger = logging.getLogger(__name__)
 
 
 class NonlinearLatencyEstimator:
-    def __init__(self, hardware, model, dummy_input=(1, 3, 224, 224), ops=None, strategy='normal'):
+    def __init__(self, hardware, model, dummy_input=(1, 3, 224, 224), ops=None, strategy='latency'):
         _logger.info(f'Get latency predictor for applied hardware: {hardware}.')
         self.hardware = hardware
         self.summary = model_summary(model, dummy_input[1:])
@@ -71,7 +71,7 @@ class NonlinearLatencyEstimator:
         return lat
 
     def cal_expected_latency(self, current_architecture_prob):
-        if self.strategy == 'normal':
+        if self.strategy == 'latency':
             lat = self._cal_normal_latency(current_architecture_prob)
         else:
             lat = self._cal_throughput_latency(current_architecture_prob)
