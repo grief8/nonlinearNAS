@@ -39,9 +39,9 @@ class NonlinearLatencyEstimator:
                 non_lat += self.block_latency_table[name][0]
                 index += 1
             else:
-                self.block_latency_table[layer] = size2memory(self.summary[layer]['output_shape']) * self.hardware[
-                    'linear']
-                linear_lat += self.block_latency_table[layer]
+                self.block_latency_table[layer] = [size2memory(self.summary[layer]['output_shape']) * self.hardware[
+                    'linear']]
+                linear_lat += self.block_latency_table[layer][0]
         self.linear_lat = linear_lat
         self.nonlinear_lat = non_lat
 
@@ -50,16 +50,15 @@ class NonlinearLatencyEstimator:
         cur_arch = current_architecture_prob.keys()
         for key in self.block_latency_table.keys():
             if key in cur_arch:
-                comm = size2memory(self.summary[key]['output_shape']) * self.hardware['communication'] * 2
                 # skip if the identity block has higher probability
                 if torch.argmax(current_architecture_prob[key]) == len(current_architecture_prob[key]) - 1:
                     continue
+                comm = self.block_latency_table[key][0] / self.hardware['nonlinear'] * self.hardware['communication'] * 2
                 lat += max(linear_comm + comm,
-                           size2memory(self.summary[key]['output_shape']) * self.hardware['nonlinear'])
+                           self.block_latency_table[key][0])
                 linear_comm, nonlinear = 0.0, 0.0
             else:
-                linear_comm += size2memory(self.summary[key]['output_shape']) * self.hardware[
-                    'linear']
+                linear_comm += self.block_latency_table[key][0]
         return lat
 
     def _cal_normal_latency(self, current_architecture_prob):

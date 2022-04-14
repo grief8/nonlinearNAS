@@ -283,7 +283,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
             alpha = self.reg_loss_params.get('alpha', 1)
             beta = self.reg_loss_params.get('beta', 0.6)
             # noinspection PyUnresolvedReferences
-            reg_loss = (torch.log(expected_latency) / math.log(self.ref_latency)) ** beta
+            reg_loss = (math.log(expected_latency) / math.log(self.ref_latency)) ** beta
             return logits, alpha * ce_loss * reg_loss
         elif self.reg_loss_type == 'add#linear':
             reg_lambda = self.reg_loss_params.get('lambda', 2e-1)
