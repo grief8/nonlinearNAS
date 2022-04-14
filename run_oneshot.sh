@@ -39,24 +39,25 @@ function run_proxylessnas() {
   model=$1
   lossType=$2
   wid=$3
-  echo start "${model}" "${lossType}" "$wid"
-  dir=./checkpoints/oneshot/"${model}"/"${lossType}"
+  strategy=$5
+  echo start "${model}" "${lossType}" "$wid" "${strategy}"
+  dir=./checkpoints/oneshot/"${model}"/"${strategy}"/"${lossType}"
   #  search
   mkdir -p "${dir}"
   python main.py  \
   --net "${model}" \
-  --pretrained \
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
   --epochs 120 \
-  --train_batch_size 256 \
+  --train_batch_size 900 \
   --checkpoint_path "${dir}"/arch_path.pt \
   --exported_arch_path "${dir}"/checkpoint.json \
-  --train_mode "$4"
+  --train_mode "$4" \
+  --strategy "$strategy"
 }
 #for constraint in 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0;
 #do
 #  run $constraint "$1" "$2" &
 #done;
-run_proxylessnas "$1" add#linear 0  "$2"&
-run_proxylessnas "$1" mul#log 0 "$2"
+run_proxylessnas "$1" add#linear 4  "$2" "$3" &
+run_proxylessnas "$1" mul#log 5 "$2" "$3"
