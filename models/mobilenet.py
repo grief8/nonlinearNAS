@@ -11,7 +11,7 @@ class DepthSeperabelConv2d(nn.Module):
 
     def __init__(self, input_channels, output_channels, kernel_size, **kwargs):
         super().__init__()
-        self.depthwise = nn.LayerChoice([nn.Sequential(
+        self.depthwise = nn.Sequential(
             nn.Conv2d(
                 input_channels,
                 input_channels,
@@ -19,28 +19,14 @@ class DepthSeperabelConv2d(nn.Module):
                 groups=input_channels,
                 **kwargs),
             nn.BatchNorm2d(input_channels),
-            nn.ReLU(inplace=True)
-        ),
-            nn.Sequential(
-                nn.Conv2d(
-                    input_channels,
-                    input_channels,
-                    kernel_size,
-                    groups=input_channels,
-                    **kwargs),
-                nn.BatchNorm2d(input_channels),
-            )
-        ])
+            nn.LayerChoice([nn.ReLU(), nn.Identity()])
+        )
 
-        self.pointwise = nn.LayerChoice([nn.Sequential(
+        self.pointwise = nn.Sequential(
             nn.Conv2d(input_channels, output_channels, 1),
             nn.BatchNorm2d(output_channels),
-            nn.ReLU(inplace=True)
-        ),
-            nn.Sequential(
-                nn.Conv2d(input_channels, output_channels, 1),
-                nn.BatchNorm2d(output_channels),
-            )])
+            nn.LayerChoice([nn.ReLU(), nn.Identity()])
+        )
 
     def forward(self, x):
         x = self.depthwise(x)
@@ -53,12 +39,9 @@ class BasicConv2d(nn.Module):
 
     def __init__(self, input_channels, output_channels, kernel_size, **kwargs):
         super().__init__()
-        self.block = nn.LayerChoice([nn.Sequential(nn.Conv2d(input_channels, output_channels, kernel_size, **kwargs),
-                                                   nn.BatchNorm2d(output_channels),
-                                                   nn.ReLU(inplace=True)),
-                                     nn.Sequential(nn.Conv2d(input_channels, output_channels, kernel_size, **kwargs),
-                                                   nn.BatchNorm2d(output_channels))
-                                     ])
+        self.block = nn.Sequential(nn.Conv2d(input_channels, output_channels, kernel_size, **kwargs),
+                                   nn.BatchNorm2d(output_channels),
+                                   nn.LayerChoice([nn.ReLU(), nn.Identity()]))
 
     def forward(self, x):
         x = self.block(x)
