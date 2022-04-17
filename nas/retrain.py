@@ -52,7 +52,6 @@ class Retrain:
         self.validate(is_test=False)
         # test
         self.validate(is_test=True)
-        torch.save(self.model, self.export_path)
 
     def train_one_epoch(self, adjust_lr_func, train_log_func, label_smoothing=0.1):
         batch_time = AverageMeter('batch_time')
@@ -142,6 +141,7 @@ class Retrain:
                 print(val_log)
             else:
                 is_best = False
+            torch.save(self.model, self.export_path)
 
     def validate(self, is_test=True):
         if is_test:
