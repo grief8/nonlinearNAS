@@ -41,6 +41,8 @@ class Retrain:
         self.test_loader = data_provider.test
         self.n_epochs = n_epochs
         self.criterion = nn.CrossEntropyLoss()
+        # change it while training
+        self.in_size = (1, 3, 224, 224)
         self.export_path = export_path
 
     def run(self):
@@ -129,7 +131,7 @@ class Retrain:
             print('Time per epoch: %s, Est. complete in: %s' % (
                 str(timedelta(seconds=time_per_epoch)),
                 str(timedelta(seconds=seconds_left))))
-            
+
             if (epoch + 1) % validation_frequency == 0:
                 val_loss, val_acc, val_acc5 = self.validate(is_test=False)
                 is_best = val_acc > best_acc
@@ -141,7 +143,8 @@ class Retrain:
                 print(val_log)
             else:
                 is_best = False
-            torch.save(self.model, self.export_path)
+            if is_best:
+                torch.onnx.export(self.model.module, (torch.rand(self.in_size)).to(self.device), self.export_path)
 
     def validate(self, is_test=True):
         if is_test:
