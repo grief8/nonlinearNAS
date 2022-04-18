@@ -1,3 +1,5 @@
+import json
+
 import torch
 import nni.retiarii.nn.pytorch as nn
 
@@ -147,3 +149,15 @@ def get_nas_network(args, class_flag=False):
         net = net(pretrained=args.pretrained)
 
     return net
+
+
+def generate_arch(checkpoint_prob_path, output_path=None):
+    if output_path is None:
+        output_path = checkpoint_prob_path.rstrip('.prob') + '.tmp'
+    with open(checkpoint_prob_path, 'r') as f, open(output_path, 'w') as out:
+        prob = json.load(f)
+        arch = dict()
+        for key in prob.keys():
+            arch[key] = prob[key].index(max(prob[key]))
+        json.dump(arch, out)
+        return arch
