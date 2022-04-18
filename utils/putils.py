@@ -161,3 +161,17 @@ def generate_arch(checkpoint_prob_path, output_path=None):
             arch[key] = prob[key].index(max(prob[key]))
         json.dump(arch, out)
         return arch
+
+
+class BinaryPReLu(nn.Module):
+    def __init__(self):
+        super(BinaryPReLu, self).__init__()
+        self.relu = nn.PReLU()
+
+    def forward(self, x):
+        weight = self.relu.weight
+        # torch.clamp(weight, 0, 1)
+        ones = torch.ones_like(weight)
+        zeros = torch.zeros_like(weight)
+        self.relu.weight = torch.where(weight <= 0.5, zeros, ones)
+        return self.relu(x)
