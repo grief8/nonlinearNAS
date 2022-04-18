@@ -19,7 +19,7 @@ if __name__ == "__main__":
     parser = ArgumentParser("proxylessnas")
     # configurations of the model
     parser.add_argument('--net', default='vgg16', type=str, help='net type')
-    parser.add_argument("--worker_id", default=0, type=int)
+    parser.add_argument("--worker_id", default='0', type=str)
     parser.add_argument("--pretrained", default=False, action="store_true")
     parser.add_argument("--epochs", default=120, type=int)
     parser.add_argument("--log_frequency", default=10, type=int)
@@ -48,7 +48,9 @@ if __name__ == "__main__":
     parser.add_argument("--exported_arch_path", default='./checkpoints/resnet18/checkpoint.json', type=str)
 
     args = parser.parse_args()
-    torch.cuda.set_device(args.worker_id)
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.worker_id
+    # torch.cuda.set_device(args.worker_id)
 
     if args.train_mode == 'retrain' and args.exported_arch_path is None:
         logger.error('When --train_mode is retrain, --exported_arch_path must be specified.')
