@@ -133,5 +133,5 @@ if __name__ == "__main__":
         # this is retrain
         print('this is retrain')
         trainer = Retrain(model, optimizer, device, data_provider, n_epochs=300,
-                          export_path=args.exported_arch_path.rstrip('.json') + '.onnx')
+                          export_path=args.exported_arch_path.rstrip('.json') + '.pth')
         trainer.run()
