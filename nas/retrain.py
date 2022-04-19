@@ -144,7 +144,7 @@ class Retrain:
             else:
                 is_best = False
             if is_best:
-                torch.save(self.model.module, self.export_path)
+                torch.save(self.model.module.state_dict(), self.export_path)
                 # torch.onnx.export(self.model.module, (torch.rand(self.in_size)).to(self.device), self.export_path)
 
     def validate(self, is_test=True):
