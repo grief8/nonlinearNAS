@@ -13,7 +13,12 @@ def analyze_arch(args, hardware):
         # print('predict_latency: ', predict_latency(model, hardware, args.input_size[1:]))
         print(predict_latency(model, hardware, args.input_size[1:]))
         # print('predict_throughput: ', predict_throughput(model, hardware, args.input_size[1:]))
-        print(predict_throughput(model, hardware, args.input_size[1:]))
+        throughput, stages = predict_throughput(model, hardware, args.input_size[1:])
+        # stages.remove(0.0)
+        print(throughput)
+        print(max(stages), min(stages), sum(stages)/len(stages))
+        print()
+        # print(predict_throughput(model, hardware, args.input_size[1:]))
 
 
 if __name__ == '__main__':

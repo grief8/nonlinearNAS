@@ -165,7 +165,7 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
             if layer.find(op) != -1:
                 nonlinear_flag = True
                 break
-        if nonlinear_flag:
+        if nonlinear_flag and linear > 0:
             total += max((hardware['communication'] + hardware['nonlinear']) * size2memory(summary[layer]["output_shape"]),
                          linear)
             stages.append(linear)
@@ -175,6 +175,6 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
         else:
             linear += hardware['linear'] * size2memory(summary[layer]["output_shape"])
     total += linear
-    if linear > 0:
+    if linear > 0.0:
         stages.append(linear)
     return 1000/total, stages
