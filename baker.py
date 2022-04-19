@@ -11,9 +11,9 @@ def analyze_arch(args, hardware):
     with fixed_arch(args.exported_arch_path, verbose=False):
         model = get_nas_network(args)
         # print('predict_latency: ', predict_latency(model, hardware, args.input_size[1:]))
-        print(predict_latency(model, hardware, args.input_size[1:]))
+        print(predict_latency(model, hardware, args.input_size[1:], device='cpu'))
         # print('predict_throughput: ', predict_throughput(model, hardware, args.input_size[1:]))
-        throughput, stages = predict_throughput(model, hardware, args.input_size[1:])
+        throughput, stages = predict_throughput(model, hardware, args.input_size[1:], device='cpu')
         # stages.remove(0.0)
         print(throughput)
         print(max(stages), min(stages), sum(stages)/len(stages))
