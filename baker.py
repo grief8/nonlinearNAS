@@ -8,10 +8,12 @@ from utils.tools import predict_latency, predict_throughput
 
 def analyze_arch(args, hardware):
     from nni.retiarii import fixed_arch
-    with fixed_arch(args.exported_arch_path):
+    with fixed_arch(args.exported_arch_path, verbose=False):
         model = get_nas_network(args)
-        print('predict_latency: ', predict_latency(model, hardware, args.input_size[1:]))
-        print('predict_throughput: ', predict_throughput(model, hardware, args.input_size[1:]))
+        # print('predict_latency: ', predict_latency(model, hardware, args.input_size[1:]))
+        print(predict_latency(model, hardware, args.input_size[1:]))
+        # print('predict_throughput: ', predict_throughput(model, hardware, args.input_size[1:]))
+        print(predict_throughput(model, hardware, args.input_size[1:]))
 
 
 if __name__ == '__main__':
@@ -36,6 +38,7 @@ if __name__ == '__main__':
         generate_arch(arch_path+'.prob')
         arch_path += '.tmp'
     print(args.net, args.strategy, args.grad_reg_loss_type)
+    args.exported_arch_path = arch_path
 
     hardware = {'nonlinear': 3.0, 'linear': 0.5, 'communication': 4.0}
     try:
