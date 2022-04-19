@@ -158,6 +158,7 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
         ops = ['ReLU', 'MaxPool']
     summary = model_summary(model, input_size, batch_size, device)
     total, linear = 0.0, 0.0
+    stages = []
     for layer in summary:
         nonlinear_flag = False
         for op in ops:
@@ -167,8 +168,13 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
         if nonlinear_flag:
             total += max((hardware['communication'] + hardware['nonlinear']) * size2memory(summary[layer]["output_shape"]),
                          linear)
+            stages.append(linear)
+            stages.append((hardware['communication'] + hardware['nonlinear']) *
+                          size2memory(summary[layer]["output_shape"]))
             linear = 0.0
         else:
             linear += hardware['linear'] * size2memory(summary[layer]["output_shape"])
     total += linear
-    return 1000/total
+    if linear > 0:
+        stages.append(linear)
+    return 1000/total, stages
