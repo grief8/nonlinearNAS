@@ -3,6 +3,7 @@
 import json
 import os
 import logging
+import pickle
 import time
 
 import torch
@@ -203,6 +204,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
                                            weight_decay=0.01, betas=(0, 0.999), eps=1e-8)
         self._init_dataloader()
         self._init_logger()
+        if os.path.exists(self.checkpoint_path + '.o'):
+            self._load_from_checkpoint(self.checkpoint_path)
 
     def _init_dataloader(self):
         n_train = len(self.dataset)
@@ -308,10 +311,18 @@ class ProxylessTrainer(BaseOneShotTrainer):
             current_architecture[module_name] = selected_module
         return self.latency_estimator.export_latency(current_architecture)
 
+    def _load_from_checkpoint(self, checkpoint_path):
+        with open(checkpoint_path, 'rb') as f:
+            state_dict, self.ctrl_optim, self.optimizer = pickle.load(f)
+            self.model.load_state_dict(state_dict)
+            _logger.info("load checkpoint from %s", checkpoint_path)
+
     def fit(self):
         for i in range(self.num_epochs):
             if self.checkpoint_path is not None:
                 json.dump(self.export_prob(), open(self.checkpoint_path + '.prob', 'w'))
+                with open(self.checkpoint_path + '.o', 'wb') as f:
+                    pickle.dump((self.model.state_dict(), self.ctrl_optim, self.optimizer), f)
             self._train_one_epoch(i)
 
     @torch.no_grad()
