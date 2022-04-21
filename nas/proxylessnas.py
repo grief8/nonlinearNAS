@@ -198,14 +198,15 @@ class ProxylessTrainer(BaseOneShotTrainer):
         for _, module in self.nas_modules:
             module.to(self.device)
 
+        self.obj_path = self.checkpoint_path.rstrip('.json') + '.o'
+        if os.path.exists(self.obj_path):
+            self._load_from_checkpoint(self.obj_path)
         self.optimizer = optimizer
         # we do not support deduplicate control parameters with same label (like DARTS) yet.
         self.ctrl_optim = torch.optim.Adam([m.alpha for _, m in self.nas_modules], arc_learning_rate,
                                            weight_decay=0.01, betas=(0, 0.999), eps=1e-8)
         self._init_dataloader()
         self._init_logger()
-        if os.path.exists(self.checkpoint_path + '.o'):
-            self._load_from_checkpoint(self.checkpoint_path)
 
     def _init_dataloader(self):
         n_train = len(self.dataset)
@@ -313,17 +314,17 @@ class ProxylessTrainer(BaseOneShotTrainer):
 
     def _load_from_checkpoint(self, checkpoint_path):
         with open(checkpoint_path, 'rb') as f:
-            state_dict, self.ctrl_optim, self.optimizer = pickle.load(f)
+            state_dict = pickle.load(f)
             self.model.load_state_dict(state_dict)
             _logger.info("load checkpoint from %s", checkpoint_path)
 
     def fit(self):
         for i in range(self.num_epochs):
+            self._train_one_epoch(i)
             if self.checkpoint_path is not None:
                 json.dump(self.export_prob(), open(self.checkpoint_path + '.prob', 'w'))
-                with open(self.checkpoint_path + '.o', 'wb') as f:
-                    pickle.dump((self.model.state_dict(), self.ctrl_optim, self.optimizer), f)
-            self._train_one_epoch(i)
+                with open(self.obj_path, 'wb') as f:
+                    pickle.dump(self.model.state_dict(), f)
 
     @torch.no_grad()
     def export(self):

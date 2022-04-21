@@ -49,7 +49,7 @@ function run_proxylessnas() {
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
   --epochs 120 \
-  --train_batch_size 128 \
+  --train_batch_size 512 \
   --checkpoint_path "${dir}"/arch_path.pt \
   --exported_arch_path "${dir}"/checkpoint.json \
   --train_mode "$4" \
