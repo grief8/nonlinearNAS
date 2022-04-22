@@ -39,7 +39,7 @@ function run_proxylessnas() {
   model=$1
   lossType=$2
   wid=$3
-  strategy=$5
+  strategy=$4
   echo start "${model}" "${lossType}" "$wid" "${strategy}"
   dir=./checkpoints/oneshot/"${model}"/"${strategy}"/"${lossType}"
   #  search
@@ -48,11 +48,9 @@ function run_proxylessnas() {
   --net "${model}" \
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
-  --epochs 120 \
+  --epochs 300 \
   --train_batch_size 512 \
-  --checkpoint_path "${dir}"/arch_path.pt \
-  --exported_arch_path "${dir}"/checkpoint.json \
-  --train_mode "$4" \
+  --checkpoint_path "${dir}"/checkpoint.pth \
   --strategy "$strategy"
 }
 #for constraint in 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0;

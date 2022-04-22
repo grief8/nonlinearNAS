@@ -1,16 +1,12 @@
-import json
 import logging
 import os
 import sys
 from argparse import ArgumentParser
-import pickle
 
 import torch
-from torchvision import transforms
-from nni.retiarii.fixed import fixed_arch
 
 import utils.datasets as datasets
-from utils.putils import LabelSmoothingLoss, accuracy, get_parameters, get_nas_network
+from utils.putils import get_parameters, get_nas_network
 from nas.retrain import Retrain
 
 logger = logging.getLogger('nni_proxylessnas')
@@ -94,9 +90,10 @@ if __name__ == "__main__":
         grad_reg_loss_params = None
 
     print('training {}'.format(args.net))
-    hardware = {'BinaryPReLu': 3.0, 'Conv2d': 0.5, 'AvgPool2d':0.1, 'BatchNorm2d':0.05, 'Linear':0.4, 'communication': 2.0}
-    trainer = Retrain(model, optimizer, device, data_provider, n_epochs=300,
-                      export_path=args.exported_arch_path.rstrip('.json') + '.pth',
+    hardware = {'BinaryPReLu': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
+                'communication': 2.0}
+    trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
+                      export_path=args.checkpoint_path,
                       loss_type=args.grad_reg_loss_type,
                       hardware=hardware,
                       target=args.strategy,
