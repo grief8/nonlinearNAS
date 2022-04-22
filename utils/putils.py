@@ -164,7 +164,7 @@ def generate_arch(checkpoint_prob_path, output_path=None):
 
 
 class BinaryPReLu(nn.Module):
-    def __init__(self, num_parameters=1, init=0.25,
+    def __init__(self, num_parameters=1, init=1,
                  device=None, dtype=None):
         super(BinaryPReLu, self).__init__()
         self.relu = nn.PReLU(num_parameters, init, device, dtype)
