@@ -47,6 +47,7 @@ function run_proxylessnas() {
   python main.py  \
   --net "${model}" \
   --grad_reg_loss_type "${lossType}" \
+  --pretrained \
   --worker_id "$wid" \
   --epochs 300 \
   --train_batch_size 512 \
@@ -57,5 +58,5 @@ function run_proxylessnas() {
 #do
 #  run $constraint "$1" "$2" &
 #done;
-run_proxylessnas "$1" add#linear 2,3  "$2" "$3" &
-run_proxylessnas "$1" mul#log 4,5 "$2" "$3"
+run_proxylessnas "$1" add#linear 6,7  "$2" &
+run_proxylessnas "$1" mul#log 4,5 "$2"
