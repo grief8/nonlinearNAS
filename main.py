@@ -46,10 +46,6 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = args.worker_id
     # torch.cuda.set_device(args.worker_id)
 
-    if args.train_mode == 'retrain' and args.exported_arch_path is None:
-        logger.error('When --train_mode is retrain, --exported_arch_path must be specified.')
-        sys.exit(-1)
-
     model = get_nas_network(args)
 
     # move network to GPU if available

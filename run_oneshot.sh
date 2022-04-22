@@ -57,5 +57,5 @@ function run_proxylessnas() {
 #do
 #  run $constraint "$1" "$2" &
 #done;
-run_proxylessnas "$1" add#linear 0  "$2" "$3" &
-run_proxylessnas "$1" mul#log 1 "$2" "$3"
+run_proxylessnas "$1" add#linear 2,3  "$2" "$3" &
+run_proxylessnas "$1" mul#log 4,5 "$2" "$3"

@@ -75,14 +75,14 @@ class Retrain:
 
     def _cal_throughput_latency(self):
         linear = size2memory(self.in_size) * self.hardware['communication']
-        idx = 1
+        idx = 0
         stages = []
         for module in self.model.children():
-            name = module.__class__.__name__
-            op = self.summary[name + '-{}'.format(idx)]
             idx += 1
+            name = module.__class__.__name__
             if self.hardware.get(name) is None:
                 continue
+            op = self.summary[name + '-{}'.format(idx)]
             if name.find('BinaryPReLu') != -1:
                 non = torch.sum(module.weight)
                 nonlinear = size2memory(op['output_shape']) * self.hardware[name]
