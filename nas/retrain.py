@@ -7,6 +7,7 @@ from utils.putils import BinaryPReLu
 from utils.tools import model_summary, size2memory
 from nni.nas.pytorch.utils import AverageMeter
 
+
 def cross_entropy_with_label_smoothing(pred, target, label_smoothing=0.1):
     logsoftmax = nn.LogSoftmax()
     n_classes = pred.size(1)
@@ -17,6 +18,7 @@ def cross_entropy_with_label_smoothing(pred, target, label_smoothing=0.1):
     # label smoothing
     soft_target = soft_target * (1 - label_smoothing) + label_smoothing / n_classes
     return torch.mean(torch.sum(- soft_target * logsoftmax(pred), 1))
+
 
 def accuracy(output, target, topk=(1,)):
     maxk = max(topk)
@@ -31,6 +33,21 @@ def accuracy(output, target, topk=(1,)):
         correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
+
+
+def _get_module_with_type(root_module, type_name, modules):
+    if modules is None:
+        modules = []
+
+    def apply(m):
+        for name, child in m.named_children():
+            if isinstance(child, type_name):
+                modules.append(child)
+            else:
+                apply(child)
+
+    apply(root_module)
+    return modules
 
 
 class Retrain:
@@ -51,6 +68,14 @@ class Retrain:
         self.hardware = hardware
         # we assume batch_size = 1
         self.summary = model_summary(model, self.in_size[1:])
+        self.block_latency_table = {}
+        for layer in self.summary:
+            name = layer.split('-')[0]
+            if self.hardware.get(name) is None:
+                self.block_latency_table[layer] = 0
+                continue
+            self.block_latency_table[layer] = size2memory(self.summary[layer]['output_shape']) * self.hardware[name]
+        self.non_ops = _get_module_with_type(self.model, BinaryPReLu, [])
 
         self.reg_loss_type = grad_reg_loss_type
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
@@ -61,38 +86,38 @@ class Retrain:
     def _cal_latency(self):
         lat = .0
         idx = 0
-        for module in self.model.children():
-            name = module.__class__.__name__
-            op = self.summary[name + '-{}'.format(idx)]
-            idx += 1
+        for layer in self.block_latency_table.keys():
+            name = layer.split('-')[0]
+            if self.hardware.get(name) is None:
+                continue
+            op = self.block_latency_table[layer]
             if name.find('BinaryPReLu') != -1:
-                non = torch.sum(module.weight)
-                lat += size2memory(op['output_shape']) * self.hardware[name]
-                lat += size2memory(op['output_shape']) * self.hardware['communication'] * (1 - non/op['output_shape'][1])
+                non = float(torch.sum(self.non_ops[idx].weight))
+                lat += op * self.hardware[name]
+                lat += op * self.hardware['communication'] * (1 - non / self.summary[layer]['output_shape'][1])
+                idx += 1
             else:
-                lat += size2memory(op['output_shape']) * self.hardware[name]
+                lat += op * self.hardware[name]
         return lat
 
     def _cal_throughput_latency(self):
         linear = size2memory(self.in_size) * self.hardware['communication']
         idx = 0
         stages = []
-        for module in self.model.children():
-            idx += 1
-            name = module.__class__.__name__
+        for layer in self.block_latency_table.keys():
+            name = layer.split('-')[0]
             if self.hardware.get(name) is None:
                 continue
-            op = self.summary[name + '-{}'.format(idx)]
+            op = self.block_latency_table[layer]
             if name.find('BinaryPReLu') != -1:
-                non = torch.sum(module.weight)
-                nonlinear = size2memory(op['output_shape']) * self.hardware[name]
-                linear += size2memory(op['output_shape']) * self.hardware['communication'] * (
-                            1 - non / op['output_shape'][1])
+                non = float(torch.sum(self.non_ops[idx].weight))
+                nonlinear = op * self.hardware[name]
+                linear += op * self.hardware['communication'] * (1 - non / self.summary[layer]['output_shape'][1])
                 stages.extend([linear, nonlinear])
-                linear = size2memory(op['output_shape']) * self.hardware['communication'] * (
-                            1 - non / op['output_shape'][1])
+                linear = op * self.hardware['communication'] * (1 - non / self.summary[layer]['output_shape'][1])
+                idx += 1
             else:
-                linear += size2memory(op['output_shape']) * self.hardware[name]
+                linear += op * self.hardware[name]
         stages.append(linear)
         stages.append(stages[0])
         lat = 0.0
@@ -175,17 +200,17 @@ class Retrain:
         nBatch = len(self.train_loader)
 
         def train_log_func(epoch_, i, batch_time, data_time, losses, top1, top5, lr):
-                batch_log = 'Train [{0}][{1}/{2}]\t' \
-                            'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
-                            'Data {data_time.val:.3f} ({data_time.avg:.3f})\t' \
-                            'Loss {losses.val:.4f} ({losses.avg:.4f})\t' \
-                            'Top-1 acc {top1.val:.3f} ({top1.avg:.3f})'. \
-                    format(epoch_ + 1, i, nBatch - 1,
-                        batch_time=batch_time, data_time=data_time, losses=losses, top1=top1)
-                batch_log += '\tTop-5 acc {top5.val:.3f} ({top5.avg:.3f})'.format(top5=top5)
-                batch_log += '\tlr {lr:.5f}'.format(lr=lr)
-                return batch_log
-        
+            batch_log = 'Train [{0}][{1}/{2}]\t' \
+                        'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
+                        'Data {data_time.val:.3f} ({data_time.avg:.3f})\t' \
+                        'Loss {losses.val:.4f} ({losses.avg:.4f})\t' \
+                        'Top-1 acc {top1.val:.3f} ({top1.avg:.3f})'. \
+                format(epoch_ + 1, i, nBatch - 1,
+                       batch_time=batch_time, data_time=data_time, losses=losses, top1=top1)
+            batch_log += '\tTop-5 acc {top5.val:.3f} ({top5.avg:.3f})'.format(top5=top5)
+            batch_log += '\tlr {lr:.5f}'.format(lr=lr)
+            return batch_log
+
         def adjust_learning_rate(n_epochs, optimizer, epoch, batch=0, nBatch=None):
             """ adjust learning of a given optimizer and return the new learning rate """
             # cosine
@@ -215,9 +240,9 @@ class Retrain:
                 val_loss, val_acc, val_acc5 = self.validate(is_test=False)
                 is_best = val_acc > best_acc
                 best_acc = max(best_acc, val_acc)
-                val_log = 'Valid [{0}/{1}]\tloss {2:.3f}\ttop-1 acc {3:.3f} ({4:.3f})'.\
+                val_log = 'Valid [{0}/{1}]\tloss {2:.3f}\ttop-1 acc {3:.3f} ({4:.3f})'. \
                     format(epoch + 1, self.n_epochs, val_loss, val_acc, best_acc)
-                val_log += '\ttop-5 acc {0:.3f}\tTrain top-1 {top1.avg:.3f}\ttop-5 {top5.avg:.3f}'.\
+                val_log += '\ttop-5 acc {0:.3f}\tTrain top-1 {top1.avg:.3f}\ttop-5 {top5.avg:.3f}'. \
                     format(val_acc5, top1=train_top1, top5=train_top5)
                 print(val_log)
             else:
@@ -258,10 +283,10 @@ class Retrain:
                         prefix = 'Test'
                     else:
                         prefix = 'Valid'
-                    test_log = prefix + ': [{0}/{1}]\t'\
-                                        'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'\
-                                        'Loss {loss.val:.4f} ({loss.avg:.4f})\t'\
-                                        'Top-1 acc {top1.val:.3f} ({top1.avg:.3f})'.\
+                    test_log = prefix + ': [{0}/{1}]\t' \
+                                        'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
+                                        'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
+                                        'Top-1 acc {top1.val:.3f} ({top1.avg:.3f})'. \
                         format(i, len(data_loader) - 1, batch_time=batch_time, loss=losses, top1=top1)
                     test_log += '\tTop-5 acc {top5.val:.3f} ({top5.avg:.3f})'.format(top5=top5)
                     print(test_log)
