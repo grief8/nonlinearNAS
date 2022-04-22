@@ -1,6 +1,5 @@
 import torch
-# import torch.nn as nn
-import nni.retiarii.nn.pytorch as nn
+import torch.nn as nn
 from torchvision._internally_replaced_utils import load_state_dict_from_url
 from typing import Union, List, Dict, Any, cast
 
@@ -10,6 +9,7 @@ __all__ = [
     'vgg19_bn', 'vgg19',
 ]
 
+from utils.putils import BinaryPReLu
 
 model_urls = {
     'vgg11': 'https://download.pytorch.org/models/vgg11-8a719046.pth',
@@ -36,10 +36,10 @@ class VGG(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
         self.classifier = nn.Sequential(
             nn.Linear(512 * 7 * 7, 4096),
-            nn.LayerChoice([nn.ReLU(), nn.Identity()]),
+            BinaryPReLu(4096),
             nn.Dropout(),
             nn.Linear(4096, 4096),
-            nn.LayerChoice([nn.ReLU(), nn.Identity()]),
+            BinaryPReLu(4096),
             nn.Dropout(),
             nn.Linear(4096, num_classes),
         )
@@ -72,14 +72,14 @@ def make_layers(cfg: List[Union[str, int]], batch_norm: bool = False) -> nn.Sequ
     in_channels = 3
     for v in cfg:
         if v == 'M':
-            layers += [nn.LayerChoice([nn.MaxPool2d(kernel_size=2, stride=2), nn.AvgPool2d(kernel_size=2, stride=2)])]
+            layers += [nn.AvgPool2d(kernel_size=2, stride=2)]
         else:
             v = cast(int, v)
             conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
             if batch_norm:
-                layers += [conv2d, nn.BatchNorm2d(v), nn.LayerChoice([nn.ReLU(), nn.Identity()])]
+                layers += [conv2d, nn.BatchNorm2d(v), BinaryPReLu(v)]
             else:
-                layers += [conv2d, nn.LayerChoice([nn.ReLU(), nn.Identity()])]
+                layers += [conv2d, BinaryPReLu(v)]
             in_channels = v
     return nn.Sequential(*layers)
 

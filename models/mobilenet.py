@@ -3,8 +3,9 @@ search mobilenet in pytorch
 """
 
 import torch
-import nni.retiarii.nn.pytorch as nn
-from nni.retiarii import model_wrapper
+import torch.nn as nn
+
+from utils.putils import BinaryPReLu
 
 
 class DepthSeperabelConv2d(nn.Module):
@@ -19,13 +20,13 @@ class DepthSeperabelConv2d(nn.Module):
                 groups=input_channels,
                 **kwargs),
             nn.BatchNorm2d(input_channels),
-            nn.LayerChoice([nn.ReLU(), nn.Identity()])
+            BinaryPReLu(input_channels)
         )
 
         self.pointwise = nn.Sequential(
             nn.Conv2d(input_channels, output_channels, 1),
             nn.BatchNorm2d(output_channels),
-            nn.LayerChoice([nn.ReLU(), nn.Identity()])
+            BinaryPReLu(output_channels)
         )
 
     def forward(self, x):
@@ -41,7 +42,7 @@ class BasicConv2d(nn.Module):
         super().__init__()
         self.block = nn.Sequential(nn.Conv2d(input_channels, output_channels, kernel_size, **kwargs),
                                    nn.BatchNorm2d(output_channels),
-                                   nn.LayerChoice([nn.ReLU(), nn.Identity()]))
+                                   BinaryPReLu(output_channels))
 
     def forward(self, x):
         x = self.block(x)
