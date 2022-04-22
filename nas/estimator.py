@@ -46,21 +46,26 @@ class NonlinearLatencyEstimator:
         self.nonlinear_lat = non_lat
 
     def _cal_throughput_latency(self, current_architecture_prob):
-        lat, linear_comm, nonlinear = 0.0, 0.0, 0.0
+        linear_comm = 0.0
+        stages = []
         cur_arch = current_architecture_prob.keys()
         for key in self.block_latency_table.keys():
             if key in cur_arch:
                 # skip if the identity block has higher probability
                 if torch.argmax(current_architecture_prob[key]) == len(current_architecture_prob[key]) - 1:
                     continue
-                comm = self.block_latency_table[key][0] / self.hardware['nonlinear'] * self.hardware['communication'] * 2
-                lat += max(linear_comm + comm,
-                           self.block_latency_table[key][0])
-                linear_comm, nonlinear = 0.0, 0.0
+                comm = self.block_latency_table[key][0] / self.hardware['nonlinear'] * self.hardware['communication']
+                stages.extend([linear_comm + comm, self.block_latency_table[key][0]])
+                linear_comm = 0.0
             else:
                 linear_comm += self.block_latency_table[key][0]
-        lat += linear_comm
-        return lat
+        lat = 0.0
+        if linear_comm != 0.0:
+            stages.append(linear_comm + linear_comm / self.hardware['linear'] * self.hardware['communication'])
+        stages.append(stages[0])
+        for i in range(len(stages)-1):
+            lat += max(stages[i], stages[i+1])
+        return lat/2
 
     def _cal_normal_latency(self, current_architecture_prob):
         lat = self.linear_lat
