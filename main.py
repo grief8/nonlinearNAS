@@ -38,8 +38,6 @@ if __name__ == "__main__":
     parser.add_argument("--n_worker", default=32, type=int)
     parser.add_argument("--resize_scale", default=0.08, type=float)
     parser.add_argument("--distort_color", default='normal', type=str, choices=['normal', 'strong', 'None'])
-    # configurations for training mode
-    parser.add_argument("--train_mode", default='search', type=str, choices=['search', 'retrain'])
     # configurations for search
     parser.add_argument("--checkpoint_path", default='./checkpoints/resnet18/search_net.pt', type=str)
     parser.add_argument("--no-warmup", dest='warmup', action='store_false')
@@ -56,13 +54,7 @@ if __name__ == "__main__":
         logger.error('When --train_mode is retrain, --exported_arch_path must be specified.')
         sys.exit(-1)
 
-    if args.train_mode == 'retrain':
-        assert os.path.isfile(args.exported_arch_path), \
-            "exported_arch_path {} should be a file.".format(args.exported_arch_path)
-        with fixed_arch(args.exported_arch_path):
-            model = get_nas_network(args)
-    else:
-        model = get_nas_network(args)
+    model = get_nas_network(args)
 
     # move network to GPU if available
     if torch.cuda.is_available():
@@ -99,39 +91,15 @@ if __name__ == "__main__":
             'beta': args.grad_reg_loss_beta,
         }
     else:
-        args.grad_reg_loss_params = None
+        grad_reg_loss_params = None
 
-    if args.train_mode == 'search':
-        from nas.proxylessnas import ProxylessTrainer
-        from torchvision.datasets import ImageNet
-        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225])
-        dataset = ImageNet(args.data_path, transform=transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ]))
-        trainer = ProxylessTrainer(model,
-                                   loss=LabelSmoothingLoss(),
-                                   dataset=dataset,
-                                   optimizer=optimizer,
-                                   metrics=lambda output, target: accuracy(output, target, topk=(1, 5,)),
-                                   num_epochs=args.epochs,
-                                   batch_size=args.train_batch_size,
-                                   log_frequency=args.log_frequency,
-                                   grad_reg_loss_type=args.grad_reg_loss_type, 
-                                   grad_reg_loss_params=grad_reg_loss_params, 
-                                   applied_hardware=args.applied_hardware, dummy_input=(1, 3, 224, 224),
-                                   checkpoint_path=args.exported_arch_path,
-                                   strategy=args.strategy)
-        trainer.fit()
-        print('Final architecture:', trainer.export())
-        json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
-        json.dump(trainer.export_prob(), open(args.exported_arch_path + '.prob', 'w'))
-    elif args.train_mode == 'retrain':
-        # this is retrain
-        print('this is retrain')
-        trainer = Retrain(model, optimizer, device, data_provider, n_epochs=300,
-                          export_path=args.exported_arch_path.rstrip('.json') + '.pth')
-        trainer.run()
+    print('training {}'.format(args.net))
+    hardware = {'BinaryPReLu': 3.0, 'Conv2d': 0.5, 'AvgPool2d':0.1, 'BatchNorm2d':0.05, 'Linear':0.4, 'communication': 2.0}
+    trainer = Retrain(model, optimizer, device, data_provider, n_epochs=300,
+                      export_path=args.exported_arch_path.rstrip('.json') + '.pth',
+                      loss_type=args.grad_reg_loss_type,
+                      hardware=hardware,
+                      target=args.strategy,
+                      grad_reg_loss_type=args.grad_reg_loss_type,
+                      grad_reg_loss_params=grad_reg_loss_params)
+    trainer.run()
