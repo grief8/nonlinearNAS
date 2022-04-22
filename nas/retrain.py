@@ -3,6 +3,8 @@ import math
 from datetime import timedelta
 import torch
 from torch import nn as nn
+from utils.putils import BinaryPReLu
+from utils.tools import model_summary, size2memory
 from nni.nas.pytorch.utils import AverageMeter
 
 def cross_entropy_with_label_smoothing(pred, target, label_smoothing=0.1):
@@ -32,7 +34,8 @@ def accuracy(output, target, topk=(1,)):
 
 
 class Retrain:
-    def __init__(self, model, optimizer, device, data_provider, n_epochs, export_path):
+    def __init__(self, model, optimizer, device, data_provider, n_epochs, export_path, loss_type, hardware,
+                 target, grad_reg_loss_type, grad_reg_loss_params=None):
         self.model = model
         self.optimizer = optimizer
         self.device = device
@@ -41,9 +44,68 @@ class Retrain:
         self.test_loader = data_provider.test
         self.n_epochs = n_epochs
         self.criterion = nn.CrossEntropyLoss()
+        self.loss_type = loss_type
         # change it while training
         self.in_size = (1, 3, 224, 224)
         self.export_path = export_path
+        self.hardware = hardware
+        # we assume batch_size = 1
+        self.summary = model_summary(model, self.in_size[1:])
+
+        self.reg_loss_type = grad_reg_loss_type
+        self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
+        # binary is initialized as ReLU
+        self.target = target
+        self.ref_latency = self.cal_expected_latency()
+
+    def _cal_latency(self):
+        lat = .0
+        idx = 0
+        for module in self.model.children():
+            name = module.__class__.__name__
+            op = self.summary[name + '-{}'.format(idx)]
+            idx += 1
+            if name.find('BinaryPReLu') != -1:
+                non = torch.sum(module.weight)
+                lat += size2memory(op['output_shape']) * self.hardware[name]
+                lat += size2memory(op['output_shape']) * self.hardware['communication'] * (1 - non/op['output_shape'][1])
+            else:
+                lat += size2memory(op['output_shape']) * self.hardware[name]
+        return lat
+
+    def _cal_throughput_latency(self):
+        linear = size2memory(self.in_size) * self.hardware['communication']
+        idx = 1
+        stages = []
+        for module in self.model.children():
+            name = module.__class__.__name__
+            op = self.summary[name + '-{}'.format(idx)]
+            idx += 1
+            if self.hardware.get(name) is None:
+                continue
+            if name.find('BinaryPReLu') != -1:
+                non = torch.sum(module.weight)
+                nonlinear = size2memory(op['output_shape']) * self.hardware[name]
+                linear += size2memory(op['output_shape']) * self.hardware['communication'] * (
+                            1 - non / op['output_shape'][1])
+                stages.extend([linear, nonlinear])
+                linear = size2memory(op['output_shape']) * self.hardware['communication'] * (
+                            1 - non / op['output_shape'][1])
+            else:
+                linear += size2memory(op['output_shape']) * self.hardware[name]
+        stages.append(linear)
+        stages.append(stages[0])
+        lat = 0.0
+        for i in range(len(stages) - 1):
+            lat += max(stages[i], stages[i + 1])
+        return lat / 2
+
+    def cal_expected_latency(self):
+        if self.target == 'latency':
+            lat = self._cal_latency()
+        else:
+            lat = self._cal_throughput_latency()
+        return lat
 
     def run(self):
         self.model = torch.nn.DataParallel(self.model)
@@ -69,9 +131,26 @@ class Retrain:
             images, labels = images.to(self.device), labels.to(self.device)
             output = self.model(images)
             if label_smoothing > 0:
-                loss = cross_entropy_with_label_smoothing(output, labels, label_smoothing)
+                ce_loss = cross_entropy_with_label_smoothing(output, labels, label_smoothing)
             else:
-                loss = self.criterion(output, labels)
+                ce_loss = self.criterion(output, labels)
+            expected_latency = self.cal_expected_latency()
+            if self.reg_loss_type == 'mul#log':
+                import math
+                alpha = self.reg_loss_params.get('alpha', 1)
+                beta = self.reg_loss_params.get('beta', 0.6)
+                # noinspection PyUnresolvedReferences
+                reg_loss = (math.log(expected_latency) / math.log(self.ref_latency)) ** beta
+                loss = alpha * ce_loss * reg_loss
+            elif self.reg_loss_type == 'add#linear':
+                reg_lambda = self.reg_loss_params.get('lambda', 2e-1)
+                reg_loss = reg_lambda * (expected_latency - self.ref_latency) / self.ref_latency
+                loss = ce_loss + reg_loss
+            elif self.reg_loss_type is None:
+                loss = ce_loss
+            else:
+                raise ValueError(f'Do not support: {self.reg_loss_type}')
+
             acc1, acc5 = accuracy(output, labels, topk=(1, 5))
             losses.update(loss, images.size(0))
             top1.update(acc1[0], images.size(0))
