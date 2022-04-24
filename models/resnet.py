@@ -267,7 +267,7 @@ def _resnet(
         if num_classes != 1000:
             state_dict['fc.weight'] = torch.mean(state_dict['fc.weight'], dim=0, keepdim=True).repeat(num_classes, 1)
             state_dict['fc.bias'] = torch.mean(state_dict['fc.bias'], dim=0, keepdim=True).repeat(num_classes)
-        model.load_state_dict(state_dict)
+        model.load_state_dict(state_dict, strict=False)
     return model
 
 
