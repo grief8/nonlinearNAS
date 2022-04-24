@@ -26,8 +26,11 @@ if __name__ == "__main__":
     parser.add_argument('--grad_reg_loss_alpha', default=0.2, type=float)  # grad_reg_loss_params
     parser.add_argument('--grad_reg_loss_beta',  default=0.3, type=float)  # grad_reg_loss_params
     parser.add_argument("--applied_hardware", default=None, type=str, help='the hardware to predict model latency')
-    parser.add_argument("--reference_latency", default=None, type=float, help='the reference latency in specified hardware')
+    parser.add_argument("--reference_latency", default=None, type=float, help='the reference latency in specified '
+                                                                              'hardware')
     # configurations of imagenet dataset
+    parser.add_argument('--dataset', default='imagenet', type=str, help='dataset type',
+                        choices=['imagenet', 'cifar100'])
     parser.add_argument("--data_path", default='/home/lifabing/data/imagenet/', type=str)
     parser.add_argument("--train_batch_size", default=48, type=int)
     parser.add_argument("--test_batch_size", default=1024, type=int)
@@ -54,15 +57,27 @@ if __name__ == "__main__":
     else:
         device = torch.device('cpu')
 
-    logger.info('Creating data provider...')
-    data_provider = datasets.ImagenetDataProvider(save_path=args.data_path,
-                                                  train_batch_size=args.train_batch_size,
-                                                  test_batch_size=args.test_batch_size,
-                                                  valid_size=None,
-                                                  n_worker=args.n_worker,
-                                                  resize_scale=args.resize_scale,
-                                                  distort_color=args.distort_color)
-    logger.info('Creating data provider done')
+    logger.info('Creating data provider {}...'.format(args.dataset))
+    if args.dataset == 'imagenet':
+        data_provider = datasets.ImagenetDataProvider(save_path=args.data_path,
+                                                      train_batch_size=args.train_batch_size,
+                                                      test_batch_size=args.test_batch_size,
+                                                      valid_size=None,
+                                                      n_worker=args.n_worker,
+                                                      resize_scale=args.resize_scale,
+                                                      distort_color=args.distort_color)
+    elif args.dataset == 'cifar100':
+        data_provider = datasets.CIFAR100DataProvider(save_path=args.data_path,
+                                                      train_batch_size=args.train_batch_size,
+                                                      test_batch_size=args.test_batch_size,
+                                                      valid_size=None,
+                                                      n_worker=args.n_worker,
+                                                      resize_scale=args.resize_scale,
+                                                      distort_color=args.distort_color)
+    else:
+        print('Failed to create data provider !')
+        sys.exit(1)
+    logger.info('Creating data provider {} done'.format(args.dataset))
 
     if args.no_decay_keys:
         keys = args.no_decay_keys
