@@ -51,7 +51,7 @@ def _get_module_with_type(root_module, type_name, modules):
 
 
 class Retrain:
-    def __init__(self, model, optimizer, device, data_provider, n_epochs, export_path, loss_type, hardware,
+    def __init__(self, model, optimizer, device, data_provider, n_epochs, export_path, hardware,
                  target, grad_reg_loss_type, grad_reg_loss_params=None):
         self.model = model
         self.optimizer = optimizer
@@ -61,7 +61,6 @@ class Retrain:
         self.test_loader = data_provider.test
         self.n_epochs = n_epochs
         self.criterion = nn.CrossEntropyLoss()
-        self.loss_type = loss_type
         # change it while training
         self.in_size = (1, 3, 224, 224)
         self.export_path = export_path
@@ -141,6 +140,9 @@ class Retrain:
         self.validate(is_test=False)
         # test
         self.validate(is_test=True)
+        print(self.reg_loss_type, self.export_path)
+        print('Expected normal latency: ', self._cal_latency())
+        print('Expected throughput latency: ', self._cal_throughput_latency())
 
     def train_one_epoch(self, adjust_lr_func, train_log_func, label_smoothing=0.1):
         batch_time = AverageMeter('batch_time')
