@@ -47,6 +47,9 @@ if __name__ == "__main__":
     # torch.cuda.set_device(args.worker_id)
 
     model = get_nas_network(args)
+    if os.path.exists(args.checkpoint_path):
+        state_dict = torch.load(args.checkpoint_path)
+        model.load_state_dict(state_dict)
 
     # move network to GPU if available
     if torch.cuda.is_available():

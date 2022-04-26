@@ -141,6 +141,9 @@ class Retrain:
         self.validate(is_test=False)
         # test
         self.validate(is_test=True)
+        print(self.reg_loss_type, self.export_path)
+        print('Expected normal latency: ', self._cal_latency())
+        print('Expected throughput latency: ', self._cal_throughput_latency())
 
     def train_one_epoch(self, adjust_lr_func, train_log_func, label_smoothing=0.1):
         batch_time = AverageMeter('batch_time')
