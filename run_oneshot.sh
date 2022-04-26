@@ -16,6 +16,7 @@ function run() {
   --net "${model}" \
   --gpu \
   --pretrained \
+  --dataset cifar100 \
   --worker-id "$wid" \
   --epochs 100 \
   --batch-size 1024 \
@@ -41,16 +42,18 @@ function run_proxylessnas() {
   wid=$3
   strategy=$4
   echo start "${model}" "${lossType}" "$wid" "${strategy}"
-  dir=./checkpoints/oneshot/"${model}"/"${strategy}"/"${lossType}"
+  dir=./checkpoints/channel/"${model}"/"${strategy}"/"${lossType}"
   #  search
   mkdir -p "${dir}"
   python main.py  \
   --net "${model}" \
+  --dataset cifar100 \
+  --data_path /home/lifabing/data/ \
   --grad_reg_loss_type "${lossType}" \
   --pretrained \
   --worker_id "$wid" \
   --epochs 300 \
-  --train_batch_size 512 \
+  --train_batch_size 2048 \
   --checkpoint_path "${dir}"/checkpoint.pth \
   --strategy "$strategy"
 }
@@ -58,5 +61,5 @@ function run_proxylessnas() {
 #do
 #  run $constraint "$1" "$2" &
 #done;
-run_proxylessnas "$1" add#linear 6,7  "$2" &
-run_proxylessnas "$1" mul#log 4,5 "$2"
+run_proxylessnas "$1" add#linear 0  "$2" &
+run_proxylessnas "$1" mul#log 0 "$2"
