@@ -197,9 +197,11 @@ class Retrain:
                 print(batch_log)
         return top1, top5
 
-    def train(self, validation_frequency=1):
+    def train(self, validation_frequency=1, regular_frequency=50):
         best_acc = 0
         nBatch = len(self.train_loader)
+        # for module in self.non_ops:
+        #     module.weight = torch.nn.Parameter(torch.rand(module.weight.size()).to(self.device))
 
         def train_log_func(epoch_, i, batch_time, data_time, losses, top1, top5, lr):
             batch_log = 'Train [{0}][{1}/{2}]\t' \
@@ -232,6 +234,12 @@ class Retrain:
                 lambda i, batch_time, data_time, losses, top1, top5, new_lr:
                 train_log_func(epoch, i, batch_time, data_time, losses, top1, top5, new_lr),
             )
+            if (epoch + 1) % regular_frequency == 0:
+                for module in self.non_ops:
+                    ones = torch.ones_like(module.weight)
+                    zeros = torch.zeros_like(module.weight)
+                    module.weight = torch.nn.Parameter(torch.where(module.weight <= 0.5, zeros, ones))
+
             time_per_epoch = time.time() - end
             seconds_left = int((self.n_epochs - epoch - 1) * time_per_epoch)
             print('Time per epoch: %s, Est. complete in: %s' % (

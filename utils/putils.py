@@ -164,7 +164,7 @@ def generate_arch(checkpoint_prob_path, output_path=None):
 
 
 class BinaryPReLu(nn.Module):
-    def __init__(self, num_parameters=1, init=0,
+    def __init__(self, num_parameters=1, init=0.25,
                  device=None, dtype=None):
         super(BinaryPReLu, self).__init__()
         factory_kwargs = {'device': device, 'dtype': dtype}
@@ -173,7 +173,7 @@ class BinaryPReLu(nn.Module):
 
     def forward(self, x):
         # torch.clamp(weight, 0, 1)
-        ones = torch.ones_like(self.weight)
-        zeros = torch.zeros_like(self.weight)
-        self.weight = torch.nn.Parameter(torch.where(self.weight <= 0.5, zeros, ones))
+        # ones = torch.ones_like(self.weight)
+        # zeros = torch.zeros_like(self.weight)
+        # self.weight = torch.nn.Parameter(torch.where(self.weight <= 0.5, zeros, ones))
         return torch.functional.F.prelu(x, self.weight)

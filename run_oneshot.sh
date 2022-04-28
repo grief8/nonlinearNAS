@@ -53,7 +53,7 @@ function run_proxylessnas() {
   --pretrained \
   --worker_id "$wid" \
   --epochs 300 \
-  --train_batch_size 2048 \
+  --train_batch_size 1024 \
   --checkpoint_path "${dir}"/checkpoint.pth \
   --strategy "$strategy"
 }
@@ -63,3 +63,4 @@ function run_proxylessnas() {
 #done;
 run_proxylessnas "$1" add#linear 0  "$2" &
 run_proxylessnas "$1" mul#log 0 "$2"
+#run_proxylessnas "$1" raw 0 "$2"
