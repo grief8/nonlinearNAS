@@ -21,7 +21,7 @@ if __name__ == "__main__":
     parser.add_argument("--log_frequency", default=10, type=int)
 
     parser.add_argument("--no_decay_keys", default='bn', type=str, choices=[None, 'bn', 'bn#bias'])
-    parser.add_argument('--grad_reg_loss_type', default=None, type=str, choices=['add#linear', 'mul#log', 'raw'])
+    parser.add_argument('--grad_reg_loss_type', default='raw', type=str, choices=['add#linear', 'mul#log', 'raw'])
     parser.add_argument('--grad_reg_loss_lambda', default=1e-1, type=float)  # grad_reg_loss_params
     parser.add_argument('--grad_reg_loss_alpha', default=0.2, type=float)  # grad_reg_loss_params
     parser.add_argument('--grad_reg_loss_beta',  default=0.3, type=float)  # grad_reg_loss_params

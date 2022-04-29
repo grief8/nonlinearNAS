@@ -173,7 +173,7 @@ class Retrain:
                 reg_lambda = self.reg_loss_params.get('lambda', 2e-1)
                 reg_loss = reg_lambda * (expected_latency - self.ref_latency) / self.ref_latency
                 loss = ce_loss + reg_loss
-            elif self.reg_loss_type is None:
+            elif self.reg_loss_type == 'raw':
                 loss = ce_loss
             else:
                 raise ValueError(f'Do not support: {self.reg_loss_type}')
