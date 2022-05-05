@@ -62,7 +62,7 @@ class Retrain:
         self.n_epochs = n_epochs
         self.criterion = nn.CrossEntropyLoss()
         # change it while training
-        self.in_size = (1, 3, 32, 32)
+        self.in_size = (1, 3, 224, 224)
         self.export_path = export_path
         self.hardware = hardware
         # we assume batch_size = 1

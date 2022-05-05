@@ -47,13 +47,13 @@ function run_proxylessnas() {
   mkdir -p "${dir}"
   python main.py  \
   --net "${model}" \
-  --dataset cifar100 \
-  --data_path /home/lifabing/data/ \
+  --dataset imagenet \
+  --data_path /home/lifabing/data/imagenet/ \
   --grad_reg_loss_type "${lossType}" \
   --pretrained \
   --worker_id "$wid" \
-  --epochs 500 \
-  --train_batch_size 2048 \
+  --epochs 300 \
+  --train_batch_size 256 \
   --checkpoint_path "${dir}"/checkpoint.pth \
   --strategy "$strategy"
 }
@@ -63,4 +63,4 @@ function run_proxylessnas() {
 #done;
 #run_proxylessnas "$1" add#linear 0  "$2" &
 #run_proxylessnas "$1" mul#log 0 "$2"
-run_proxylessnas "$1" raw 0 "$2"
+run_proxylessnas "$1" raw 1 "$2"
