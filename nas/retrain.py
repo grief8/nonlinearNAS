@@ -52,7 +52,7 @@ def _get_module_with_type(root_module, type_name, modules):
 
 class Retrain:
     def __init__(self, model, optimizer, device, data_provider, n_epochs, export_path, hardware,
-                 target, grad_reg_loss_type, grad_reg_loss_params=None):
+                 target, grad_reg_loss_type, grad_reg_loss_params=None, search_flag=True):
         self.model = model
         self.optimizer = optimizer
         self.device = device
@@ -75,6 +75,11 @@ class Retrain:
                 continue
             self.block_latency_table[layer] = size2memory(self.summary[layer]['output_shape']) * self.hardware[name]
         self.non_ops = _get_module_with_type(self.model, BinaryPReLu, [])
+        if not search_flag:
+            for module in self.non_ops:
+                ones = torch.ones_like(module.weight)
+                zeros = torch.zeros_like(module.weight)
+                module.weight = torch.nn.Parameter(torch.where(module.weight <= 0.5, zeros, ones), requires_grad=False)
 
         self.reg_loss_type = grad_reg_loss_type
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
@@ -234,11 +239,11 @@ class Retrain:
                 lambda i, batch_time, data_time, losses, top1, top5, new_lr:
                 train_log_func(epoch, i, batch_time, data_time, losses, top1, top5, new_lr),
             )
-            if (epoch + 1) % regular_frequency == 0:
-                for module in self.non_ops:
-                    ones = torch.ones_like(module.weight)
-                    zeros = torch.zeros_like(module.weight)
-                    module.weight = torch.nn.Parameter(torch.where(module.weight <= 0.5, zeros, ones))
+            # if (epoch + 1) % regular_frequency == 0:
+            #     for module in self.non_ops:
+            #         ones = torch.ones_like(module.weight)
+            #         zeros = torch.zeros_like(module.weight)
+            #         module.weight = torch.nn.Parameter(torch.where(module.weight <= 0.5, zeros, ones))
 
             time_per_epoch = time.time() - end
             seconds_left = int((self.n_epochs - epoch - 1) * time_per_epoch)
