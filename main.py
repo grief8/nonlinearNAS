@@ -50,9 +50,12 @@ if __name__ == "__main__":
     # torch.cuda.set_device(args.worker_id)
 
     model = get_nas_network(args)
-    if os.path.exists(args.checkpoint_path):
-        state_dict = torch.load(args.checkpoint_path)
+    model_path = args.checkpoint_path.replace(args.grad_reg_loss_type, 'raw')
+    if os.path.exists(model_path):
+        state_dict = torch.load(model_path)
         model.load_state_dict(state_dict)
+        print('load from ', model_path)
+        print('save to ', args.checkpoint_path)
 
     # move network to GPU if available
     if torch.cuda.is_available():
@@ -111,5 +114,6 @@ if __name__ == "__main__":
                       hardware=hardware,
                       target=args.strategy,
                       grad_reg_loss_type=args.grad_reg_loss_type,
-                      grad_reg_loss_params=grad_reg_loss_params)
+                      grad_reg_loss_params=grad_reg_loss_params,
+                      search_flag=False)
     trainer.run()
