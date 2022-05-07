@@ -1,8 +1,10 @@
 import logging
 import os
+import random
 import sys
 from argparse import ArgumentParser
 
+import numpy as np
 import torch
 
 import utils.datasets as datasets
@@ -10,6 +12,13 @@ from utils.putils import get_parameters, get_nas_network
 from nas.retrain import Retrain
 
 logger = logging.getLogger('nni_proxylessnas')
+# set up random number seed to 42 for results
+torch.manual_seed(42)
+torch.cuda.manual_seed(42)
+torch.cuda.manual_seed_all(42)  # if you are using multi-GPU
+np.random.seed(42)  # Numpy module.
+random.seed(42)  # Python random module.
+
 
 if __name__ == "__main__":
     parser = ArgumentParser("proxylessnas")
