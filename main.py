@@ -48,7 +48,7 @@ if __name__ == "__main__":
     parser.add_argument("--distort_color", default='normal', type=str, choices=['normal', 'strong', 'None'])
     # configurations for search
 
-    parser.add_argument("--search", default=True, type=bool)
+    parser.add_argument("--search", default=False, action="store_true")
     parser.add_argument("--checkpoint_path", default='./checkpoints/resnet18/search_net.pt', type=str)
     parser.add_argument("--no-warmup", dest='warmup', action='store_false')
     parser.add_argument("--strategy", default='latency', type=str, choices=['latency', 'throughput'])
