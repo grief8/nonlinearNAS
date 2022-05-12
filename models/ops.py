@@ -94,9 +94,9 @@ class Base2DLayer(nn.Module):
         # batch norm
         if self.use_bn:
             if self.bn_before_weight:
-                modules['bn'] = nn.BatchNorm1d(in_channels)
+                modules['bn'] = nn.BatchNorm2d(in_channels)
             else:
-                modules['bn'] = nn.BatchNorm1d(out_channels)
+                modules['bn'] = nn.BatchNorm2d(out_channels)
         else:
             modules['bn'] = None
         # activation
@@ -213,9 +213,9 @@ class LinearLayer(nn.Module):
         # batch norm and activation
         if self.use_bn:
             if self.bn_before_weight:
-                modules['bn'] = nn.BatchNorm1d(in_features)
+                modules['bn'] = nn.BatchNorm2d(in_features)
             else:
-                modules['bn'] = nn.BatchNorm1d(out_features)
+                modules['bn'] = nn.BatchNorm2d(out_features)
         else:
             modules['bn'] = None
         # activation
