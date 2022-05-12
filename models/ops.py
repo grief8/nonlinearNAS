@@ -91,16 +91,19 @@ class Base2DLayer(nn.Module):
 
         """ modules """
         modules = {}
-        # batch norm and activation
+        # batch norm
         if self.use_bn:
             if self.bn_before_weight:
                 modules['bn'] = nn.BatchNorm1d(in_channels)
-                modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', in_channels)
             else:
                 modules['bn'] = nn.BatchNorm1d(out_channels)
-                modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', out_channels)
         else:
             modules['bn'] = None
+        # activation
+        if self.bn_before_weight:
+            modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', in_channels)
+        else:
+            modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', out_channels)
         # dropout
         if self.dropout_rate > 0:
             modules['dropout'] = nn.Dropout2d(self.dropout_rate, )
@@ -211,13 +214,15 @@ class LinearLayer(nn.Module):
         if self.use_bn:
             if self.bn_before_weight:
                 modules['bn'] = nn.BatchNorm1d(in_features)
-                modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', in_features)
             else:
                 modules['bn'] = nn.BatchNorm1d(out_features)
-                modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', out_features)
         else:
             modules['bn'] = None
-
+        # activation
+        if self.bn_before_weight:
+            modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', in_features)
+        else:
+            modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', out_features)
         # dropout
         if self.dropout_rate > 0:
             modules['dropout'] = nn.Dropout(self.dropout_rate, )
