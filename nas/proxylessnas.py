@@ -322,7 +322,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
         for i in range(self.num_epochs):
             self._train_one_epoch(i)
             if self.checkpoint_path is not None:
-                json.dump(self.export_prob(), open(self.checkpoint_path + '.prob', 'w'))
+                # json.dump(self.export_prob(), open(self.checkpoint_path + '.prob', 'w'))
                 with open(self.obj_path, 'wb') as f:
                     pickle.dump(self.model.state_dict(), f)
 

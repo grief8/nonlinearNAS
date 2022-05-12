@@ -288,14 +288,14 @@ class MBInvertedConvLayer(nn.Module):
             self.inverted_bottleneck = nn.Sequential(OrderedDict([
                 ('conv', nn.Conv2d(self.in_channels, feature_dim, 1, 1, 0, bias=False)),
                 ('bn', nn.BatchNorm2d(feature_dim)),
-                ('act', nn.ReLU6(inplace=True)),
+                ('act', nn.PReLU(inplace=True)),
             ]))
 
         pad = get_same_padding(self.kernel_size)
         self.depth_conv = nn.Sequential(OrderedDict([
             ('conv', nn.Conv2d(feature_dim, feature_dim, kernel_size, stride, pad, groups=feature_dim, bias=False)),
             ('bn', nn.BatchNorm2d(feature_dim)),
-            ('act', nn.ReLU6(inplace=True)),
+            ('act', nn.PReLU(inplace=True)),
         ]))
 
         self.point_linear = nn.Sequential(OrderedDict([

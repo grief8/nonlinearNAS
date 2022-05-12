@@ -117,6 +117,9 @@ def get_nas_network(args, class_flag=False):
     if args.net == 'mobilenet':
         from models.mobilenet import mobilenet
         net = mobilenet
+    elif args.net == 'searchmobilenet':
+        from models.model import SearchMobileNet
+        net = SearchMobileNet
     elif args.net == 'resnet50':
         from models.resnet import resnet50
         net = resnet50
