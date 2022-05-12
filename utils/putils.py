@@ -43,7 +43,7 @@ def get_same_padding(kernel_size):
     return kernel_size // 2
 
 
-def build_activation(act_func, inplace=True):
+def build_activation(act_func, inplace=True, num_parameters=1):
     if act_func == 'relu':
         return nn.ReLU(inplace=inplace)
     elif act_func == 'relu6':
@@ -52,6 +52,8 @@ def build_activation(act_func, inplace=True):
         return nn.Tanh()
     elif act_func == 'sigmoid':
         return nn.Sigmoid()
+    elif act_func == 'prelu':
+        return nn.PReLU(num_parameters=num_parameters)
     elif act_func is None:
         return None
     else:

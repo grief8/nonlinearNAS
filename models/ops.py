@@ -27,7 +27,7 @@ OPS = {
     '7x7_MBConv5': lambda in_C, out_C, stride: MBInvertedConvLayer(in_C, out_C, 7, stride, 5),
     '7x7_MBConv6': lambda in_C, out_C, stride: MBInvertedConvLayer(in_C, out_C, 7, stride, 6)
 }
-
+    
 
 class MobileInvertedResidualBlock(nn.Module):
 
@@ -91,16 +91,16 @@ class Base2DLayer(nn.Module):
 
         """ modules """
         modules = {}
-        # batch norm
+        # batch norm and activation
         if self.use_bn:
             if self.bn_before_weight:
-                modules['bn'] = nn.BatchNorm2d(in_channels)
+                modules['bn'] = nn.BatchNorm1d(in_channels)
+                modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', in_channels)
             else:
-                modules['bn'] = nn.BatchNorm2d(out_channels)
+                modules['bn'] = nn.BatchNorm1d(out_channels)
+                modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', out_channels)
         else:
             modules['bn'] = None
-        # activation
-        modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act')
         # dropout
         if self.dropout_rate > 0:
             modules['dropout'] = nn.Dropout2d(self.dropout_rate, )
@@ -207,16 +207,17 @@ class LinearLayer(nn.Module):
 
         """ modules """
         modules = {}
-        # batch norm
+        # batch norm and activation
         if self.use_bn:
             if self.bn_before_weight:
                 modules['bn'] = nn.BatchNorm1d(in_features)
+                modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', in_features)
             else:
                 modules['bn'] = nn.BatchNorm1d(out_features)
+                modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act', out_features)
         else:
             modules['bn'] = None
-        # activation
-        modules['act'] = build_activation(self.act_func, self.ops_list[0] != 'act')
+
         # dropout
         if self.dropout_rate > 0:
             modules['dropout'] = nn.Dropout(self.dropout_rate, )
@@ -288,14 +289,14 @@ class MBInvertedConvLayer(nn.Module):
             self.inverted_bottleneck = nn.Sequential(OrderedDict([
                 ('conv', nn.Conv2d(self.in_channels, feature_dim, 1, 1, 0, bias=False)),
                 ('bn', nn.BatchNorm2d(feature_dim)),
-                ('act', nn.PReLU()),
+                ('act', nn.PReLU(feature_dim)),
             ]))
 
         pad = get_same_padding(self.kernel_size)
         self.depth_conv = nn.Sequential(OrderedDict([
             ('conv', nn.Conv2d(feature_dim, feature_dim, kernel_size, stride, pad, groups=feature_dim, bias=False)),
             ('bn', nn.BatchNorm2d(feature_dim)),
-            ('act', nn.PReLU()),
+            ('act', nn.PReLU(feature_dim)),
         ]))
 
         self.point_linear = nn.Sequential(OrderedDict([
