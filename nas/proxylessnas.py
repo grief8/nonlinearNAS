@@ -15,7 +15,6 @@ from nni.retiarii.oneshot.pytorch.utils import AverageMeterGroup, replace_layer_
 
 from nas.estimator import NonlinearLatencyEstimator
 
-
 _logger = logging.getLogger(__name__)
 torch.autograd.set_detect_anomaly(True)
 
@@ -56,6 +55,7 @@ class ProxylessLayerChoice(nn.Module):
         def run_function(ops, active_id):
             def forward(_x):
                 return ops[active_id](_x)
+
             return forward
 
         def backward_function(ops, active_id, binary_gates):
@@ -70,6 +70,7 @@ class ProxylessLayerChoice(nn.Module):
                         grad_k = torch.sum(out_k * grad_output)
                         binary_grads[k] = grad_k
                 return binary_grads
+
             return backward
 
         assert len(args) == 1
@@ -180,13 +181,12 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.checkpoint_path = checkpoint_path
 
         # latency predictor
-        if applied_hardware:
-            self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input, 
-                                                               strategy=strategy)
-        else:
-            self.latency_estimator = NonlinearLatencyEstimator({'nonlinear': 3.0, 'linear': 0.5, 'communication': 4.0}, 
-                                                               self.model, 
-                                                               dummy_input, strategy=strategy)
+        if not applied_hardware:
+            applied_hardware = {'BinaryPReLu': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
+                                'communication': 2.0}
+        self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input,
+                                                           strategy=strategy)
+
         self.reg_loss_type = grad_reg_loss_type
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
         self.ref_latency = self.latency_estimator.linear_lat + self.latency_estimator.nonlinear_lat
