@@ -45,8 +45,9 @@ def model_latency(model, input_size, hardware, batch_size=1, device="cuda"):
                 ]
             else:
                 output_shape = list(output.size())[1:]
-            m_key = "%s_%s_%s" % (
-                class_name, repr_shape(input_shape), repr_shape(output_shape))
+            module_idx = len(summary)
+            m_key = "%s_%s_%s_%i" % (
+                class_name, repr_shape(input_shape), repr_shape(output_shape), module_idx+1)
             summary[m_key] = OrderedDict()
             summary[m_key]["input_shape"] = input_shape
             summary[m_key]["output_shape"] = output_shape
