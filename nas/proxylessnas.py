@@ -182,8 +182,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
 
         # latency predictor
         if not applied_hardware:
-            applied_hardware = {'BinaryPReLu': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
-                                'communication': 2.0}
+            applied_hardware = {'PReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
+                                'communication': 2.0, 'LayerChoice': 0.0}
         self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input,
                                                            strategy=strategy)
 
