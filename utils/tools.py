@@ -52,7 +52,7 @@ def model_latency(model, input_size, hardware, batch_size=1, device="cuda"):
             summary[m_key]["input_shape"] = input_shape
             summary[m_key]["output_shape"] = output_shape
             summary[m_key]['latency'] = hardware[class_name] * size2memory(summary[m_key]["output_shape"]) * batch_size
-            total_latency.append(summary[m_key]['latency'][:])
+            total_latency.append(summary[m_key]['latency'])
 
         hooks.append(module.register_forward_hook(hook))
 
@@ -69,7 +69,7 @@ def model_latency(model, input_size, hardware, batch_size=1, device="cuda"):
         dtype = torch.FloatTensor
 
     # multiple inputs to the network
-    if isinstance(input_size, tuple):
+    if isinstance(input_size, (tuple, list)):
         input_size = [input_size]
 
     # batch_size of 2 for batchnorm
