@@ -21,6 +21,76 @@ def sift(summary, ops):
     return total_output
 
 
+def repr_shape(shape):
+    if isinstance(shape, (list, tuple)):
+        return 'x'.join(str(_) for _ in shape)
+    elif isinstance(shape, str):
+        return shape
+    else:
+        return TypeError
+
+
+def model_latency(model, input_size, hardware, batch_size=1, device="cuda"):
+    def register_hook(module):
+
+        def hook(module, input, output):
+            class_name = str(module.__class__).split(".")[-1].split("'")[0]
+            if not class_name in list(hardware.keys()):
+                return
+
+            m_key = "%s_%s_%s" % (
+                class_name, repr_shape(list(input[0].size())[1:]), repr_shape(list(output[0].size())[1:]))
+            summary[m_key] = OrderedDict()
+            summary[m_key]["input_shape"] = list(input[0].size())[1:]
+            if isinstance(output, (list, tuple)):
+                summary[m_key]["output_shape"] = [
+                    list(o.size())[1:] for o in output
+                ]
+            else:
+                summary[m_key]["output_shape"] = list(output.size())[1:]
+
+            summary[m_key]['latency'] = hardware[class_name] * size2memory(summary[m_key]["output_shape"]) * batch_size
+
+        hooks.append(module.register_forward_hook(hook))
+
+    device = device.lower()
+    assert device in [
+        "cuda",
+        "cpu",
+    ], "Input device is not valid, please specify 'cuda' or 'cpu'"
+
+    if device == "cuda" and torch.cuda.is_available():
+        model.to(device)
+        dtype = torch.cuda.FloatTensor
+    else:
+        dtype = torch.FloatTensor
+
+    # multiple inputs to the network
+    if isinstance(input_size, tuple):
+        input_size = [input_size]
+
+    # batch_size of 2 for batchnorm
+    x = [torch.rand(2, *in_size).type(dtype) for in_size in input_size]
+    # print(type(x[0]))
+
+    # create properties
+    summary = OrderedDict()
+    hooks = []
+
+    # register hook
+    model.apply(register_hook)
+
+    # make a forward pass
+    # print(x.shape)
+    model(*x)
+
+    # remove these hooks
+    for h in hooks:
+        h.remove()
+
+    return summary
+
+
 def model_summary(model, input_size, batch_size=-1, device="cuda"):
     def register_hook(module):
 
@@ -166,8 +236,9 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
                 nonlinear_flag = True
                 break
         if nonlinear_flag and linear > 0:
-            total += max((hardware['communication'] + hardware['nonlinear']) * size2memory(summary[layer]["output_shape"]),
-                         linear)
+            total += max(
+                (hardware['communication'] + hardware['nonlinear']) * size2memory(summary[layer]["output_shape"]),
+                linear)
             stages.append(linear)
             stages.append((hardware['communication'] + hardware['nonlinear']) *
                           size2memory(summary[layer]["output_shape"]))
@@ -177,4 +248,4 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
     total += linear
     if linear > 0.0:
         stages.append(linear)
-    return 1000/total, stages
+    return 1000 / total, stages
