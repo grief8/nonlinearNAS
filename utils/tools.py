@@ -38,18 +38,20 @@ def model_latency(model, input_size, hardware, batch_size=1, device="cuda"):
             if not class_name in list(hardware.keys()):
                 return
 
-            m_key = "%s_%s_%s" % (
-                class_name, repr_shape(list(input[0].size())[1:]), repr_shape(list(output[0].size())[1:]))
-            summary[m_key] = OrderedDict()
-            summary[m_key]["input_shape"] = list(input[0].size())[1:]
+            input_shape = list(input[0].size())[1:]
             if isinstance(output, (list, tuple)):
-                summary[m_key]["output_shape"] = [
+                output_shape = [
                     list(o.size())[1:] for o in output
                 ]
             else:
-                summary[m_key]["output_shape"] = list(output.size())[1:]
-
+                output_shape = list(output.size())[1:]
+            m_key = "%s_%s_%s" % (
+                class_name, repr_shape(input_shape), repr_shape(output_shape))
+            summary[m_key] = OrderedDict()
+            summary[m_key]["input_shape"] = input_shape
+            summary[m_key]["output_shape"] = output_shape
             summary[m_key]['latency'] = hardware[class_name] * size2memory(summary[m_key]["output_shape"]) * batch_size
+            total_latency.append(summary[m_key]['latency'][:])
 
         hooks.append(module.register_forward_hook(hook))
 
@@ -75,6 +77,7 @@ def model_latency(model, input_size, hardware, batch_size=1, device="cuda"):
 
     # create properties
     summary = OrderedDict()
+    total_latency = []
     hooks = []
 
     # register hook
@@ -88,7 +91,7 @@ def model_latency(model, input_size, hardware, batch_size=1, device="cuda"):
     for h in hooks:
         h.remove()
 
-    return summary
+    return summary, sum(total_latency)
 
 
 def model_summary(model, input_size, batch_size=-1, device="cuda"):
