@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from nni.retiarii.oneshot.interface import BaseOneShotTrainer
 from nni.retiarii.oneshot.pytorch.utils import AverageMeterGroup, replace_layer_choice, replace_input_choice, to_device
 
-from nas.estimator import NonlinearLatencyEstimator
+from nas.estimator import NonlinearLatencyEstimator, _get_module_with_type
 
 _logger = logging.getLogger(__name__)
 torch.autograd.set_detect_anomaly(True)
@@ -185,11 +185,10 @@ class ProxylessTrainer(BaseOneShotTrainer):
             applied_hardware = {'PReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
                                 'communication': 2.0, 'LayerChoice': 0.0}
         self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input,
-                                                           strategy=strategy)
+                                                           target=strategy)
 
         self.reg_loss_type = grad_reg_loss_type
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
-        self.ref_latency = self.latency_estimator.linear_lat + self.latency_estimator.nonlinear_lat
 
         self.model.to(self.device)
         self.nas_modules = []
@@ -197,6 +196,12 @@ class ProxylessTrainer(BaseOneShotTrainer):
         replace_input_choice(self.model, ProxylessInputChoice, self.nas_modules)
         for _, module in self.nas_modules:
             module.to(self.device)
+        self.non_ops = _get_module_with_type(model, nn.PReLU, [])
+        for _, module in self.non_ops:
+            module.to(self.device)
+
+        current_architecture_prob, relu_count = self._get_arch_relu()
+        self.ref_latency = self.latency_estimator.cal_expected_latency(current_architecture_prob, relu_count)
 
         self.obj_path = self.checkpoint_path.rstrip('.json') + '.o'
         if os.path.exists(self.obj_path):
@@ -270,6 +275,16 @@ class ProxylessTrainer(BaseOneShotTrainer):
                 _logger.info("Epoch [%s/%s] Step [%s/%s]  %s", epoch + 1,
                              self.num_epochs, step + 1, len(self.train_loader), meters)
 
+    def _get_arch_relu(self):
+        current_architecture_prob = []
+        for module_name, module in self.nas_modules:
+            probs = module.export_prob()
+            current_architecture_prob.append(probs)
+        relu_count = []
+        for module_name, module in self.non_ops:
+            relu_count.append(float(torch.sum(module.weight)))
+        return current_architecture_prob, relu_count
+
     def _logits_and_loss_for_arch_update(self, X, y):
         """ return logits and loss for architecture parameter update """
         logits = self.model(X)
@@ -277,11 +292,12 @@ class ProxylessTrainer(BaseOneShotTrainer):
         if not self.latency_estimator:
             return logits, ce_loss
 
-        current_architecture_prob = {}
-        for module_name, module in self.nas_modules:
-            probs = module.export_prob()
-            current_architecture_prob[module_name] = probs
-        expected_latency = self.latency_estimator.cal_expected_latency(current_architecture_prob)
+        # current_architecture_prob = {}
+        # for module_name, module in self.nas_modules:
+        #     probs = module.export_prob()
+        #     current_architecture_prob[module_name] = probs
+        current_architecture_prob, relu_count = self._get_arch_relu()
+        expected_latency = self.latency_estimator.cal_expected_latency(current_architecture_prob, relu_count)
 
         if self.reg_loss_type == 'mul#log':
             import math
