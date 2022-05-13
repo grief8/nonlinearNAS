@@ -1,4 +1,5 @@
 import logging
+from collections import OrderedDict
 
 import torch
 import nni.retiarii.nn.pytorch as nn
@@ -32,19 +33,19 @@ class NonlinearLatencyEstimator:
         self.in_size = dummy_input
         self.target = target
         self.block_latency_table, self.total_latency = model_latency(model, dummy_input[1:], hardware)
-        self.non_ops = _get_module_with_type(model, nn.PReLU, [])
-        self.choices = _get_module_with_type(model, nn.LayerChoice, [])
-        self._get_layerchoice_names()
-        self.layerchoice_latency = self._get_layerchoice()
+        # self.non_ops = _get_module_with_type(model, nn.PReLU, [])
+        # self.choices = _get_module_with_type(model, nn.LayerChoice, [])
+        self.layerchoice_latency = self._get_layerchoice(_get_module_with_type(model, nn.LayerChoice, []))
+        self.relu_comm_latency = self._get_relu_comm_table()
 
-    def _get_layerchoice(self):
+    def _get_layerchoice(self, choices):
         layerchoice_latency = []
         idx = 0
         for name in self.block_latency_table.keys():
             if name.startswith('LayerChoice'):
-                in_size = [int(i) for i in name.split('_')[1].split('x')]
+                in_size = self.block_latency_table[name]['input_shape']
                 latency = []
-                for choice in self.choices[idx].choices:
+                for choice in choices[idx].choices:
                     _, lat = model_latency(choice, in_size, self.hardware)
                     latency.append(lat)
                 layerchoice_latency.append(latency)
@@ -52,21 +53,22 @@ class NonlinearLatencyEstimator:
                 idx += 1
         return layerchoice_latency
 
-    def _cal_latency(self):
-        lat = .0
-        idx = 0
-        for layer in self.block_latency_table.keys():
-            name = layer.split('-')[0]
-            if self.hardware.get(name) is None:
-                continue
-            op = self.block_latency_table[layer]
-            if name.find('PReLu') != -1:
-                non = float(torch.sum(self.non_ops[idx].weight))
-                lat += op * self.hardware[name]
-                lat += op * self.hardware['communication'] * (1 - non / self.summary[layer]['output_shape'][1])
-                idx += 1
-            else:
-                lat += op * self.hardware[name]
+    def _get_relu_comm_table(self):
+        relu_comm_latency = []
+        for name in self.block_latency_table.keys():
+            if name.startswith('PReLU'):
+                relu_comm_latency.append([(size2memory(self.block_latency_table[name]['input_shape']) +
+                                          size2memory(self.block_latency_table[name]['output_shape'])) * self.hardware[
+                                             'communication'], self.block_latency_table[name]['input_shape'][0]])
+        return relu_comm_latency
+
+    def _cal_latency(self, cur_arch_prob, relu_count):
+        lat = self.total_latency
+        for i, prob in enumerate(cur_arch_prob):
+            for j, pb in enumerate(prob):
+                lat += pb * self.layerchoice_latency[i][j]
+        for i, count in enumerate(relu_count):
+            lat += (1-count/self.relu_comm_latency[i][1]) * self.relu_comm_latency[i][0]
         return lat
 
     def _cal_throughput_latency(self):
@@ -94,9 +96,9 @@ class NonlinearLatencyEstimator:
             lat += max(stages[i], stages[i + 1])
         return lat / 2
 
-    def cal_expected_latency(self):
+    def cal_expected_latency(self, cur_arch_prob, relu_count):
         if self.target == 'latency':
-            lat = self._cal_latency()
+            lat = self._cal_latency(cur_arch_prob, relu_count)
         else:
             lat = self._cal_throughput_latency()
         return lat
