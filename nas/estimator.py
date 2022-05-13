@@ -35,8 +35,9 @@ class NonlinearLatencyEstimator:
         self.block_latency_table, self.total_latency = model_latency(model, dummy_input[1:], hardware)
         # self.non_ops = _get_module_with_type(model, nn.PReLU, [])
         # self.choices = _get_module_with_type(model, nn.LayerChoice, [])
-        self.layerchoice_latency = self._get_layerchoice(_get_module_with_type(model, nn.LayerChoice, []))
         self.relu_comm_latency = self._get_relu_comm_table()
+        self.layerchoice_latency = self._get_layerchoice(_get_module_with_type(model, nn.LayerChoice, []))
+        print('NonlinearLatencyEstimator initialized...')
 
     def _get_layerchoice(self, choices):
         layerchoice_latency = []
@@ -45,11 +46,21 @@ class NonlinearLatencyEstimator:
             if name.startswith('LayerChoice'):
                 in_size = self.block_latency_table[name]['input_shape']
                 latency = []
-                for choice in choices[idx].choices:
-                    _, lat = model_latency(choice, in_size, self.hardware)
+                for i, choice in enumerate(choices[idx].choices):
+                    table, lat = model_latency(choice, in_size[:], self.hardware)
                     latency.append(lat)
+                    if i == 0:
+                        self.total_latency -= lat
+                        continue
+                    for key in table.keys():
+                        if key.startswith('PReLU'):
+                            self.relu_comm_latency.append([(size2memory(table[key]['input_shape']) +
+                                                            size2memory(
+                                                                table[key]['output_shape'])) *
+                                                           self.hardware[
+                                                               'communication'],
+                                                           table[key]['input_shape'][0]])
                 layerchoice_latency.append(latency)
-                self.total_latency -= sum(latency)
                 idx += 1
         return layerchoice_latency
 
@@ -58,8 +69,8 @@ class NonlinearLatencyEstimator:
         for name in self.block_latency_table.keys():
             if name.startswith('PReLU'):
                 relu_comm_latency.append([(size2memory(self.block_latency_table[name]['input_shape']) +
-                                          size2memory(self.block_latency_table[name]['output_shape'])) * self.hardware[
-                                             'communication'], self.block_latency_table[name]['input_shape'][0]])
+                                           size2memory(self.block_latency_table[name]['output_shape'])) * self.hardware[
+                                              'communication'], self.block_latency_table[name]['input_shape'][0]])
         return relu_comm_latency
 
     def _cal_latency(self, cur_arch_prob, relu_count):
@@ -67,8 +78,8 @@ class NonlinearLatencyEstimator:
         for i, prob in enumerate(cur_arch_prob):
             for j, pb in enumerate(prob):
                 lat += pb * self.layerchoice_latency[i][j]
-        for i, count in enumerate(relu_count):
-            lat += (1-count/self.relu_comm_latency[i][1]) * self.relu_comm_latency[i][0]
+        for i, count in enumerate(self.relu_comm_latency):
+            lat += (1 - relu_count[i] / count[1]) * count[0]
         return lat
 
     def _cal_throughput_latency(self):
