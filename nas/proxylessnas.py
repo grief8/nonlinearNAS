@@ -190,18 +190,18 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.reg_loss_type = grad_reg_loss_type
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
 
+        self.model = torch.nn.DataParallel(self.model)
         self.model.to(self.device)
         self.nas_modules = []
         replace_layer_choice(self.model, ProxylessLayerChoice, self.nas_modules)
         replace_input_choice(self.model, ProxylessInputChoice, self.nas_modules)
         for _, module in self.nas_modules:
             module.to(self.device)
-        self.non_ops = _get_module_with_type(model, nn.PReLU, [])
-        for _, module in self.non_ops:
-            module.to(self.device)
+        self.non_ops = _get_module_with_type(self.model, [nn.PReLU], [])
 
         current_architecture_prob, relu_count = self._get_arch_relu()
-        self.ref_latency = self.latency_estimator.cal_expected_latency(current_architecture_prob, relu_count)
+        # relu_count because prelu is init to 0.25
+        self.ref_latency = self.latency_estimator.cal_expected_latency(current_architecture_prob, [0 for i in range(len(relu_count))])
 
         self.obj_path = self.checkpoint_path.rstrip('.json') + '.o'
         if os.path.exists(self.obj_path):
@@ -281,7 +281,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
             probs = module.export_prob()
             current_architecture_prob.append(probs)
         relu_count = []
-        for module_name, module in self.non_ops:
+        for module in self.non_ops:
             relu_count.append(float(torch.sum(module.weight)))
         return current_architecture_prob, relu_count
 
@@ -322,11 +322,9 @@ class ProxylessTrainer(BaseOneShotTrainer):
         return logits, loss
 
     def _export_latency(self):
-        current_architecture = {}
-        for module_name, module in self.nas_modules:
-            selected_module = module.export()
-            current_architecture[module_name] = selected_module
-        return self.latency_estimator.export_latency(current_architecture)
+        current_architecture_prob, relu_count = self._get_arch_relu()
+        expected_latency = self.latency_estimator.cal_expected_latency(current_architecture_prob, relu_count)
+        return expected_latency
 
     def _load_from_checkpoint(self, checkpoint_path):
         with open(checkpoint_path, 'rb') as f:
