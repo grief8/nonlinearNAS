@@ -278,7 +278,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
     def _get_arch_relu(self):
         current_architecture_prob = []
         for module_name, module in self.nas_modules:
-            probs = module.export_prob()
+            probs = module.export_prob().detach()
             current_architecture_prob.append(probs)
         relu_count = []
         for module in self.non_ops:
