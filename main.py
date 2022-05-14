@@ -10,6 +10,7 @@ from torchvision import transforms
 from nni.retiarii.fixed import fixed_arch
 
 import utils.datasets as datasets
+from models.model import SearchMobileNet
 from utils.putils import LabelSmoothingLoss, accuracy, get_parameters, get_nas_network
 from nas.retrain import Retrain
 
@@ -24,6 +25,12 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", default=120, type=int)
     parser.add_argument("--log_frequency", default=10, type=int)
 
+    parser.add_argument("--n_cell_stages", default='4,4,4,4,4,1', type=str)
+    parser.add_argument("--stride_stages", default='2,2,2,1,2,1', type=str)
+    parser.add_argument("--width_stages", default='24,40,80,96,192,320', type=str)
+    parser.add_argument("--bn_momentum", default=0.1, type=float)
+    parser.add_argument("--bn_eps", default=1e-3, type=float)
+    parser.add_argument("--dropout_rate", default=0, type=float)
     parser.add_argument("--no_decay_keys", default='bn', type=str, choices=[None, 'bn', 'bn#bias'])
     parser.add_argument('--grad_reg_loss_type', default='add#linear', type=str, choices=['add#linear', 'mul#log', 'raw'])
     parser.add_argument('--grad_reg_loss_lambda', default=1e-1, type=float)  # grad_reg_loss_params
@@ -60,9 +67,24 @@ if __name__ == "__main__":
         assert os.path.isfile(args.exported_arch_path), \
             "exported_arch_path {} should be a file.".format(args.exported_arch_path)
         with fixed_arch(args.exported_arch_path):
-            model = get_nas_network(args)
+            # model = get_nas_network(args)
+            model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
+                                    n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
+                                    stride_stages=[int(i) for i in args.stride_stages.split(',')],
+                                    n_classes=1000,
+                                    dropout_rate=args.dropout_rate,
+                                    bn_param=(args.bn_momentum, args.bn_eps))
     else:
-        model = get_nas_network(args)
+        # model = get_nas_network(args)
+        model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
+                                n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
+                                stride_stages=[int(i) for i in args.stride_stages.split(',')],
+                                n_classes=1000,
+                                dropout_rate=args.dropout_rate,
+                                bn_param=(args.bn_momentum, args.bn_eps))
+    logger.info('SearchMobileNet model create done')
+    model.init_model()
+    logger.info('SearchMobileNet model init done')
 
     # move network to GPU if available
     if torch.cuda.is_available():

@@ -1,89 +1,115 @@
 import logging
+from collections import OrderedDict
 
 import torch
-from utils.tools import model_summary, size2memory
+import nni.retiarii.nn.pytorch as nn
+from utils.tools import model_latency, size2memory
 
 _logger = logging.getLogger(__name__)
 
 
+def _get_module_with_type(root_module, type_name, modules):
+    if modules is None:
+        modules = []
+    if not isinstance(type_name, (list, tuple)):
+        type_name = [type_name]
+
+    def apply(m):
+        for name, child in m.named_children():
+            for t_name in type_name:
+                if isinstance(child, t_name):
+                    modules.append(child)
+                else:
+                    apply(child)
+
+    apply(root_module)
+    return modules
+
+
 class NonlinearLatencyEstimator:
-    def __init__(self, hardware, model, dummy_input=(1, 3, 224, 224), ops=None, strategy='latency'):
+    def __init__(self, hardware, model, dummy_input=(1, 3, 224, 224), target='latency'):
         _logger.info(f'Get latency predictor for applied hardware: {hardware}.')
         self.hardware = hardware
-        self.summary = model_summary(model, dummy_input[1:])
-        self.block_latency_table = {}
-        self.linear_lat = 0.0
-        self.nonlinear_lat = 0.0
-        if ops is None:
-            self.ops = ['ReLU', 'MaxPool']
-        self.strategy = strategy
+        self.in_size = dummy_input
+        self.target = target
+        self.block_latency_table, self.total_latency = model_latency(model, dummy_input[1:], hardware)
+        # self.non_ops = _get_module_with_type(model, nn.PReLU, [])
+        # self.choices = _get_module_with_type(model, nn.LayerChoice, [])
+        self.relu_comm_latency = self._get_relu_comm_table()
+        self.layerchoice_latency = self._get_layerchoice(_get_module_with_type(model, nn.LayerChoice, []))
+        print('NonlinearLatencyEstimator initialized...')
 
-        self._get_latency_table()
+    def _get_layerchoice(self, choices):
+        layerchoice_latency = []
+        idx = 0
+        for name in self.block_latency_table.keys():
+            if name.startswith('LayerChoice'):
+                in_size = self.block_latency_table[name]['input_shape']
+                latency = []
+                for i, choice in enumerate(choices[idx].choices):
+                    table, lat = model_latency(choice, in_size[:], self.hardware)
+                    latency.append(lat)
+                    if i == 0:
+                        self.total_latency -= lat
+                        continue
+                    for key in table.keys():
+                        if key.startswith('PReLU'):
+                            self.relu_comm_latency.append([(size2memory(table[key]['input_shape']) +
+                                                            size2memory(
+                                                                table[key]['output_shape'])) *
+                                                           self.hardware[
+                                                               'communication'],
+                                                           table[key]['input_shape'][0]])
+                layerchoice_latency.append(latency)
+                idx += 1
+        return layerchoice_latency
 
-    def _get_latency_table(self):
-        linear_lat = 0.0
-        non_lat = 0.0
-        index = 1
-        for layer in self.summary:
-            if layer.find('LayerChoice') != -1:
-                continue
-            nonlinear_flag = False
-            for op in self.ops:
-                if layer.find(op) != -1:
-                    nonlinear_flag = True
-                    break
-            if nonlinear_flag:
-                name = 'default_{}'.format(index)
-                self.block_latency_table[name] = [size2memory(self.summary[layer]['output_shape']) * self.hardware[
-                    'nonlinear'], 0]
-                non_lat += self.block_latency_table[name][0]
-                index += 1
-            else:
-                self.block_latency_table[layer] = [size2memory(self.summary[layer]['output_shape']) * self.hardware[
-                    'linear']]
-                linear_lat += self.block_latency_table[layer][0]
-        self.linear_lat = linear_lat
-        self.nonlinear_lat = non_lat
+    def _get_relu_comm_table(self):
+        relu_comm_latency = []
+        for name in self.block_latency_table.keys():
+            if name.startswith('PReLU'):
+                relu_comm_latency.append([(size2memory(self.block_latency_table[name]['input_shape']) +
+                                           size2memory(self.block_latency_table[name]['output_shape'])) * self.hardware[
+                                              'communication'], self.block_latency_table[name]['input_shape'][0]])
+        return relu_comm_latency
 
-    def _cal_throughput_latency(self, current_architecture_prob):
-        linear_comm = 0.0
+    def _cal_latency(self, cur_arch_prob, relu_count):
+        lat = self.total_latency
+        for i, prob in enumerate(cur_arch_prob):
+            for j, pb in enumerate(prob):
+                lat += pb * self.layerchoice_latency[i][j]
+        for i, count in enumerate(self.relu_comm_latency):
+            lat += (1 - relu_count[i] / count[1]) * count[0]
+        return lat
+
+    def _cal_throughput_latency(self):
+        linear = size2memory(self.in_size) * self.hardware['communication']
+        idx = 0
         stages = []
-        cur_arch = current_architecture_prob.keys()
-        for key in self.block_latency_table.keys():
-            if key in cur_arch:
-                # skip if the identity block has higher probability
-                if torch.argmax(current_architecture_prob[key]) == len(current_architecture_prob[key]) - 1:
-                    continue
-                comm = self.block_latency_table[key][0] / self.hardware['nonlinear'] * self.hardware['communication']
-                stages.extend([linear_comm + comm, self.block_latency_table[key][0]])
-                linear_comm = 0.0
+        for layer in self.block_latency_table.keys():
+            name = layer.split('-')[0]
+            if self.hardware.get(name) is None:
+                continue
+            op = self.block_latency_table[layer]
+            if name.find('PReLu') != -1:
+                non = float(torch.sum(self.non_ops[idx].weight))
+                nonlinear = op * self.hardware[name]
+                linear += op * self.hardware['communication'] * (1 - non / self.summary[layer]['output_shape'][1])
+                stages.extend([linear, nonlinear])
+                linear = op * self.hardware['communication'] * (1 - non / self.summary[layer]['output_shape'][1])
+                idx += 1
             else:
-                linear_comm += self.block_latency_table[key][0]
-        lat = 0.0
-        if linear_comm != 0.0:
-            stages.append(linear_comm + linear_comm / self.hardware['linear'] * self.hardware['communication'])
+                linear += op * self.hardware[name]
+        stages.append(linear)
         stages.append(stages[0])
-        for i in range(len(stages)-1):
-            lat += max(stages[i], stages[i+1])
-        return lat/2
+        lat = 0.0
+        for i in range(len(stages) - 1):
+            lat += max(stages[i], stages[i + 1])
+        return lat / 2
 
-    def _cal_normal_latency(self, current_architecture_prob):
-        lat = self.linear_lat
-        for module_name, probs in current_architecture_prob.items():
-            assert len(probs) == len(self.block_latency_table[module_name])
-            lat += torch.sum(torch.tensor([probs[i] * self.block_latency_table[module_name][i]
-                                           for i in range(len(probs))]))
-        return lat
-
-    def cal_expected_latency(self, current_architecture_prob):
-        if self.strategy == 'latency':
-            lat = self._cal_normal_latency(current_architecture_prob)
+    def cal_expected_latency(self, cur_arch_prob, relu_count):
+        if self.target == 'latency':
+            lat = self._cal_latency(cur_arch_prob, relu_count)
         else:
-            lat = self._cal_throughput_latency(current_architecture_prob)
-        return lat
-
-    def export_latency(self, current_architecture):
-        lat = self.linear_lat
-        for module_name, selected_module in current_architecture.items():
-            lat += self.block_latency_table[module_name][selected_module]
+            lat = self._cal_throughput_latency()
         return lat

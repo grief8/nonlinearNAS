@@ -33,7 +33,7 @@ class SearchMobileNet(nn.Module):
         for i in range(len(width_stages)):
             width_stages[i] = putils.make_divisible(width_stages[i] * width_mult, 8)
         # first conv
-        first_conv = ops.ConvLayer(3, input_channel, kernel_size=3, stride=2, use_bn=True, act_func='relu6',
+        first_conv = ops.ConvLayer(3, input_channel, kernel_size=3, stride=2, use_bn=True, act_func='prelu',
                                    ops_order='weight_bn_act')
         # first block
         first_block_conv = ops.OPS['3x3_MBConv1'](input_channel, first_cell_width, 1)
@@ -75,7 +75,7 @@ class SearchMobileNet(nn.Module):
 
         # feature mix layer
         last_channel = putils.make_devisible(1280 * width_mult, 8) if width_mult > 1.0 else 1280
-        feature_mix_layer = ops.ConvLayer(input_channel, last_channel, kernel_size=1, use_bn=True, act_func='relu6',
+        feature_mix_layer = ops.ConvLayer(input_channel, last_channel, kernel_size=1, use_bn=True, act_func='prelu',
                                           ops_order='weight_bn_act', )
         classifier = ops.LinearLayer(last_channel, n_classes, dropout_rate=dropout_rate)
 
