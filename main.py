@@ -39,6 +39,8 @@ if __name__ == "__main__":
     parser.add_argument("--applied_hardware", default=None, type=str, help='the hardware to predict model latency')
     parser.add_argument("--reference_latency", default=None, type=float, help='the reference latency in specified hardware')
     # configurations of imagenet dataset
+    parser.add_argument('--dataset', default='imagenet', type=str, help='dataset type',
+                        choices=['imagenet', 'cifar100'])
     parser.add_argument("--data_path", default='/home/lifabing/data/imagenet/', type=str)
     parser.add_argument("--train_batch_size", default=48, type=int)
     parser.add_argument("--test_batch_size", default=1024, type=int)
@@ -92,15 +94,27 @@ if __name__ == "__main__":
     else:
         device = torch.device('cpu')
 
-    logger.info('Creating data provider...')
-    data_provider = datasets.ImagenetDataProvider(save_path=args.data_path,
-                                                  train_batch_size=args.train_batch_size,
-                                                  test_batch_size=args.test_batch_size,
-                                                  valid_size=None,
-                                                  n_worker=args.n_worker,
-                                                  resize_scale=args.resize_scale,
-                                                  distort_color=args.distort_color)
-    logger.info('Creating data provider done')
+    logger.info('Creating data provider {}...'.format(args.dataset))
+    if args.dataset == 'imagenet':
+        data_provider = datasets.ImagenetDataProvider(save_path=args.data_path,
+                                                      train_batch_size=args.train_batch_size,
+                                                      test_batch_size=args.test_batch_size,
+                                                      valid_size=None,
+                                                      n_worker=args.n_worker,
+                                                      resize_scale=args.resize_scale,
+                                                      distort_color=args.distort_color)
+    elif args.dataset == 'cifar100':
+        data_provider = datasets.CIFAR100DataProvider(save_path=args.data_path,
+                                                      train_batch_size=args.train_batch_size,
+                                                      test_batch_size=args.test_batch_size,
+                                                      valid_size=None,
+                                                      n_worker=args.n_worker,
+                                                      resize_scale=args.resize_scale,
+                                                      distort_color=args.distort_color)
+    else:
+        print('Failed to create data provider !')
+        sys.exit(1)
+    logger.info('Creating data provider {} done'.format(args.dataset))
 
     if args.no_decay_keys:
         keys = args.no_decay_keys
@@ -125,18 +139,9 @@ if __name__ == "__main__":
 
     if args.train_mode == 'search':
         from nas.proxylessnas import ProxylessTrainer
-        from torchvision.datasets import ImageNet
-        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225])
-        dataset = ImageNet(args.data_path, transform=transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ]))
         trainer = ProxylessTrainer(model,
                                    loss=LabelSmoothingLoss(),
-                                   dataset=dataset,
+                                   dataset=data_provider.train.dataset,
                                    optimizer=optimizer,
                                    metrics=lambda output, target: accuracy(output, target, topk=(1, 5,)),
                                    num_epochs=args.epochs,
@@ -144,7 +149,7 @@ if __name__ == "__main__":
                                    log_frequency=args.log_frequency,
                                    grad_reg_loss_type=args.grad_reg_loss_type, 
                                    grad_reg_loss_params=grad_reg_loss_params, 
-                                   applied_hardware=args.applied_hardware, dummy_input=(1, 3, 224, 224),
+                                   applied_hardware=args.applied_hardware, dummy_input=(1,)+data_provider.data_shape,
                                    checkpoint_path=args.exported_arch_path,
                                    strategy=args.strategy)
         trainer.fit()

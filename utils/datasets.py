@@ -186,3 +186,127 @@ class ImagenetDataProvider(DataProvider):
     @property
     def image_size(self):
         return 224
+
+
+class CIFAR100DataProvider(DataProvider):
+
+    def __init__(self, save_path=None, train_batch_size=256, test_batch_size=512, valid_size=None,
+                 n_worker=32, resize_scale=0.08, distort_color=None):
+
+        self._save_path = save_path
+        train_transforms = self.build_train_transform(distort_color)
+        print(self.train_path)
+        train_dataset = datasets.CIFAR100(root=self.train_path, train=True, transform=train_transforms)
+
+        if valid_size is not None:
+            if isinstance(valid_size, float):
+                valid_size = int(valid_size * len(train_dataset))
+            else:
+                assert isinstance(valid_size, int), 'invalid valid_size: %s' % valid_size
+            train_indexes, valid_indexes = self.random_sample_valid_set(
+                [cls for _, cls in train_dataset.samples], valid_size, self.n_classes,
+            )
+            train_sampler = torch.utils.data.sampler.SubsetRandomSampler(train_indexes)
+            valid_sampler = torch.utils.data.sampler.SubsetRandomSampler(valid_indexes)
+
+            valid_dataset = datasets.CIFAR100(self.valid_path, train=False, transform=transforms.Compose([
+                transforms.Resize(self.resize_value),
+                transforms.CenterCrop(self.image_size),
+                transforms.ToTensor(),
+                self.normalize,
+            ]))
+
+            self.train = torch.utils.data.DataLoader(
+                train_dataset, batch_size=train_batch_size, sampler=train_sampler,
+                num_workers=n_worker, pin_memory=True,
+            )
+            self.valid = torch.utils.data.DataLoader(
+                valid_dataset, batch_size=test_batch_size, sampler=valid_sampler,
+                num_workers=n_worker, pin_memory=True,
+            )
+        else:
+            self.train = torch.utils.data.DataLoader(
+                train_dataset, batch_size=train_batch_size, shuffle=True,
+                num_workers=n_worker, pin_memory=True,
+            )
+            self.valid = None
+
+        self.test = torch.utils.data.DataLoader(
+            datasets.CIFAR100(self.valid_path, train=False, transform=transforms.Compose([
+                transforms.Resize(self.resize_value),
+                transforms.CenterCrop(self.image_size),
+                transforms.ToTensor(),
+                self.normalize,
+            ])), batch_size=test_batch_size, shuffle=False, num_workers=n_worker, pin_memory=True,
+        )
+
+        if self.valid is None:
+            self.valid = self.test
+
+    @staticmethod
+    def name():
+        return 'cifar-100'
+
+    @property
+    def data_shape(self):
+        return 3, self.image_size, self.image_size  # C, H, W
+
+    @property
+    def n_classes(self):
+        return 100
+
+    @property
+    def save_path(self):
+        if self._save_path is None:
+            self._save_path = '/home/lifabing/data/'
+        return self._save_path
+
+    @property
+    def data_url(self):
+        raise ValueError('unable to download cifar-100')
+
+    @property
+    def train_path(self):
+        return self._save_path
+
+    @property
+    def valid_path(self):
+        return self._save_path
+
+    @property
+    def normalize(self):
+        return transforms.Normalize(mean=[0.5070751592371323, 0.48654887331495095, 0.4409178433670343],
+                                    std=[0.2673342858792401, 0.2564384629170883, 0.27615047132568404])
+
+    def build_train_transform(self, distort_color):
+        print('Color jitter: %s' % distort_color)
+        if distort_color == 'strong':
+            color_transform = transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1)
+        elif distort_color == 'normal':
+            color_transform = transforms.ColorJitter(brightness=32. / 255., saturation=0.5)
+        else:
+            color_transform = None
+        if color_transform is None:
+            train_transforms = transforms.Compose([
+                transforms.RandomCrop(self.image_size, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                self.normalize,
+            ])
+        else:
+            train_transforms = transforms.Compose([
+                transforms.RandomCrop(self.image_size, padding=4),
+                transforms.RandomHorizontalFlip(),
+                color_transform,
+                transforms.ToTensor(),
+                self.normalize,
+            ])
+        return train_transforms
+
+    @property
+    def resize_value(self):
+        return 32
+
+    @property
+    def image_size(self):
+        return 32
