@@ -233,7 +233,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
         log_path = os.path.dirname('/home/lifabing/projects/nonlinearNAS/logs/')
         log_path = os.path.join(log_path, self.reg_loss_type)
         if not os.path.exists(log_path):
-            os.mkdir(log_path)
+            os.makedirs(log_path)
         logfile = os.path.join(log_path, rq + '.log')
         fh = logging.FileHandler(logfile, mode='w')
         fh.setLevel(logging.INFO)
