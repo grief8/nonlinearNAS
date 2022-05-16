@@ -141,7 +141,7 @@ if __name__ == "__main__":
         from nas.proxylessnas import ProxylessTrainer
         trainer = ProxylessTrainer(model,
                                    loss=LabelSmoothingLoss(),
-                                   dataset=data_provider.train,
+                                   dataset=data_provider.train.dataset,
                                    optimizer=optimizer,
                                    metrics=lambda output, target: accuracy(output, target, topk=(1, 5,)),
                                    num_epochs=args.epochs,
