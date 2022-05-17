@@ -6,11 +6,13 @@ from argparse import ArgumentParser
 import pickle
 
 import torch
+from torch import nn
 from torchvision import transforms
 from nni.retiarii.fixed import fixed_arch
 
 import utils.datasets as datasets
 from models.model import SearchMobileNet
+from nas.estimator import _get_module_with_type, NonlinearLatencyEstimator
 from utils.putils import LabelSmoothingLoss, accuracy, get_parameters, get_nas_network
 from nas.retrain import Retrain
 
@@ -87,6 +89,24 @@ if __name__ == "__main__":
     logger.info('SearchMobileNet model create done')
     model.init_model()
     logger.info('SearchMobileNet model init done')
+
+    # if os.path.exists(args.exported_arch_path.rstrip('.json') + '.pth'):
+    #     st = torch.load(args.exported_arch_path.rstrip('.json') + '.pth')
+    #     model.load_state_dict(st)
+    # non_ops = _get_module_with_type(model, [nn.PReLU], [])
+    # for module in non_ops:
+    #     ones = torch.ones_like(module.weight)
+    #     zeros = torch.zeros_like(module.weight)
+    #     module.weight = torch.nn.Parameter(torch.where(module.weight <= 0.5, zeros, ones), requires_grad=False)
+    # relu_count = []
+    # for module in non_ops:
+    #     relu_count.append(float(torch.sum(module.weight)))
+    # applied_hardware = {'PReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
+    #                     'communication': 2.0, 'LayerChoice': 0.0}
+    # latency_estimator = NonlinearLatencyEstimator(applied_hardware, model, (1, 3, 32, 32),
+    #                                               target='throughput')
+    # print(args.grad_reg_loss_type, args.strategy, latency_estimator.cal_expected_latency([], relu_count=relu_count))
+    # sys.exit(1)
 
     # move network to GPU if available
     if torch.cuda.is_available():
