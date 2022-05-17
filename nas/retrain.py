@@ -42,7 +42,6 @@ class Retrain:
         self.n_epochs = n_epochs
         self.criterion = nn.CrossEntropyLoss()
         # change it while training
-        self.in_size = (1, 3, 224, 224)
         self.export_path = export_path
 
     def run(self):
@@ -145,7 +144,6 @@ class Retrain:
                 is_best = False
             if is_best:
                 torch.save(self.model.module.state_dict(), self.export_path)
-                # torch.onnx.export(self.model.module, (torch.rand(self.in_size)).to(self.device), self.export_path)
 
     def validate(self, is_test=True):
         if is_test:
