@@ -1,3 +1,4 @@
+import os
 import time
 import math
 from datetime import timedelta
@@ -43,6 +44,9 @@ class Retrain:
         self.criterion = nn.CrossEntropyLoss()
         # change it while training
         self.export_path = export_path
+        if os.path.exists(export_path):
+            st = torch.load(export_path)
+            model.load_state_dict(st)
 
     def run(self):
         self.model = torch.nn.DataParallel(self.model)
