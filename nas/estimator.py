@@ -52,8 +52,9 @@ class NonlinearLatencyEstimator:
                     layer_table[str(i)] = table
                     if i == 0:
                         self.total_latency -= lat
+                        num_choices = len(table)
                         for j, key in enumerate(table):
-                            rm_key = '_'.join(key.split('_')[:-1] + [str(int(name.split('_')[-1]) + j - 8)])
+                            rm_key = '_'.join(key.split('_')[:-1] + [str(int(name.split('_')[-1]) + j - num_choices)])
                             new_table.pop(rm_key)
                         continue
                 new_table[name] = layer_table

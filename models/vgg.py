@@ -36,10 +36,10 @@ class VGG(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
         self.classifier = nn.Sequential(
             nn.Linear(512 * 7 * 7, 4096),
-            nn.LayerChoice([nn.ReLU(), nn.Identity()]),
+            nn.LayerChoice([nn.PReLU(4096), nn.Identity()]),
             nn.Dropout(),
             nn.Linear(4096, 4096),
-            nn.LayerChoice([nn.ReLU(), nn.Identity()]),
+            nn.LayerChoice([nn.PReLU(4096), nn.Identity()]),
             nn.Dropout(),
             nn.Linear(4096, num_classes),
         )
@@ -77,9 +77,9 @@ def make_layers(cfg: List[Union[str, int]], batch_norm: bool = False) -> nn.Sequ
             v = cast(int, v)
             conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
             if batch_norm:
-                layers += [conv2d, nn.BatchNorm2d(v), nn.LayerChoice([nn.ReLU(), nn.Identity()])]
+                layers += [conv2d, nn.BatchNorm2d(v), nn.LayerChoice([nn.PReLU(v), nn.Identity()])]
             else:
-                layers += [conv2d, nn.LayerChoice([nn.ReLU(), nn.Identity()])]
+                layers += [conv2d, nn.LayerChoice([nn.PReLU(v), nn.Identity()])]
             in_channels = v
     return nn.Sequential(*layers)
 
@@ -99,11 +99,11 @@ def _vgg(arch: str, cfg: str, batch_norm: bool, pretrained: bool, progress: bool
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls[arch],
                                               progress=progress)
-        num_classes = 1000 if kwargs.get('num_classes') is None else kwargs.get('num_classes')
-        if num_classes != 1000:
-            state_dict['classifier.6.weight'] = torch.mean(state_dict['classifier.6.weight'], dim=0, keepdim=True).repeat(num_classes, 1)
-            state_dict['classifier.6.bias'] = torch.mean(state_dict['classifier.6.bias'], dim=0, keepdim=True).repeat(num_classes)
-        model.load_state_dict(state_dict)
+        # num_classes = 1000 if kwargs.get('num_classes') is None else kwargs.get('num_classes')
+        # if num_classes != 1000:
+        #     state_dict['classifier.6.weight'] = torch.mean(state_dict['classifier.6.weight'], dim=0, keepdim=True).repeat(num_classes, 1)
+        #     state_dict['classifier.6.bias'] = torch.mean(state_dict['classifier.6.bias'], dim=0, keepdim=True).repeat(num_classes)
+        model.load_state_dict(state_dict, strict=False)
     return model
 
 
