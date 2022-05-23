@@ -12,6 +12,7 @@ from nni.retiarii.fixed import fixed_arch
 
 import utils.datasets as datasets
 from models.model import SearchMobileNet
+from models.shufflenet import ShuffleNetV2OneShot
 from nas.estimator import _get_module_with_type, NonlinearLatencyEstimator
 from utils.putils import LabelSmoothingLoss, accuracy, get_parameters, get_nas_network
 from nas.retrain import Retrain
@@ -71,24 +72,26 @@ if __name__ == "__main__":
         assert os.path.isfile(args.exported_arch_path), \
             "exported_arch_path {} should be a file.".format(args.exported_arch_path)
         with fixed_arch(args.exported_arch_path):
-            # model = get_nas_network(args)
-            model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
-                                    n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
-                                    stride_stages=[int(i) for i in args.stride_stages.split(',')],
-                                    n_classes=1000,
-                                    dropout_rate=args.dropout_rate,
-                                    bn_param=(args.bn_momentum, args.bn_eps))
+            model = get_nas_network(args)
+            # model = ShuffleNetV2OneShot()
+            # model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
+            #                         n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
+            #                         stride_stages=[int(i) for i in args.stride_stages.split(',')],
+            #                         n_classes=1000,
+            #                         dropout_rate=args.dropout_rate,
+            #                         bn_param=(args.bn_momentum, args.bn_eps))
     else:
-        # model = get_nas_network(args)
-        model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
-                                n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
-                                stride_stages=[int(i) for i in args.stride_stages.split(',')],
-                                n_classes=1000,
-                                dropout_rate=args.dropout_rate,
-                                bn_param=(args.bn_momentum, args.bn_eps))
-    logger.info('SearchMobileNet model create done')
-    model.init_model()
-    logger.info('SearchMobileNet model init done')
+        model = get_nas_network(args)
+        # model = ShuffleNetV2OneShot(input_size=32, n_classes=100)
+        # model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
+        #                         n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
+        #                         stride_stages=[int(i) for i in args.stride_stages.split(',')],
+        #                         n_classes=1000,
+        #                         dropout_rate=args.dropout_rate,
+        #                         bn_param=(args.bn_momentum, args.bn_eps))
+        # logger.info('SearchMobileNet model create done')
+        # model.init_model()
+        # logger.info('SearchMobileNet model init done')
 
     # if os.path.exists(args.exported_arch_path.rstrip('.json') + '.pth'):
     #     st = torch.load(args.exported_arch_path.rstrip('.json') + '.pth')
