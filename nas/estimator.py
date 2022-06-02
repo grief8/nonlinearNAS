@@ -47,6 +47,8 @@ class NonlinearLatencyEstimator:
             if name.startswith('LayerChoice'):
                 in_size = self.block_latency_table[name]['input_shape']
                 layer_table = OrderedDict()
+                if len(choices) <= idx:
+                    continue
                 for i, choice in enumerate(choices[idx].choices):
                     table, lat = model_latency(choice, in_size[:], self.hardware)
                     layer_table[str(i)] = table
