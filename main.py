@@ -145,10 +145,10 @@ if __name__ == "__main__":
         optimizer = torch.optim.SGD([
             {'params': get_parameters(model, keys, mode='exclude'), 'weight_decay': 4e-5},
             {'params': get_parameters(model, keys, mode='include'), 'weight_decay': 0},
-        ], lr=0.05, momentum=momentum, nesterov=nesterov)
+        ], lr=0.001, momentum=momentum, nesterov=nesterov)
     else:
         momentum, nesterov = 0.9, True
-        optimizer = torch.optim.SGD(get_parameters(model), lr=0.05, momentum=momentum, nesterov=nesterov, weight_decay=4e-5)
+        optimizer = torch.optim.SGD(get_parameters(model), lr=0.001, momentum=momentum, nesterov=nesterov, weight_decay=4e-5)
 
     if args.grad_reg_loss_type == 'add#linear':
         grad_reg_loss_params = {'lambda': args.grad_reg_loss_lambda}
@@ -169,6 +169,8 @@ if __name__ == "__main__":
                                    metrics=lambda output, target: accuracy(output, target, topk=(1, 5,)),
                                    num_epochs=args.epochs,
                                    batch_size=args.train_batch_size,
+                                   arc_learning_rate=1e-5,
+                                   warmup_epochs=60,
                                    log_frequency=args.log_frequency,
                                    grad_reg_loss_type=args.grad_reg_loss_type, 
                                    grad_reg_loss_params=grad_reg_loss_params, 
