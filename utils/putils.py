@@ -146,12 +146,21 @@ def get_nas_network(args, class_flag=False):
     elif args.net == 'vgg19':
         from models.vgg import vgg19_bn
         net = vgg19_bn
+    elif args.net == 'searchshufflenet':
+        from models.shufflenet import ShuffleNetV2OneShot
+        net = ShuffleNetV2OneShot
     else:
         print('the network name you have entered is not supported yet')
         sys.exit()
 
     if not class_flag:
-        net = net(pretrained=args.pretrained)
+        if args.net == 'searchshufflenet':
+            if args.dataset == 'cifar100':
+                net = net(input_size=32, n_classes=100)
+            else:
+                net = net()
+        else:
+            net = net(pretrained=args.pretrained)
 
     return net
 

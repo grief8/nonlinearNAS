@@ -17,11 +17,11 @@ class SearchMobileNet(nn.Module):
         """
         Parameters
         ----------
-        width_stages: str
+        width_stages: list
             width (output channels) of each cell stage in the block
-        n_cell_stages: str
+        n_cell_stages: list
             number of cells in each cell stage
-        stride_stages: str
+        stride_stages: list
             stride of each cell stage in the block
         width_mult : int
             the scale factor of width
