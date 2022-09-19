@@ -38,20 +38,20 @@ class ResNet(nn.Module):
         self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = norm_layer(self.inplanes)
-        self.relu = nn.LayerChoice([nn.ReLU(), nn.Identity()])
-        self.maxpool = nn.LayerChoice(
-            [nn.MaxPool2d(kernel_size=3, stride=2, padding=1), nn.AvgPool2d(kernel_size=3, stride=2, padding=1)])
+        self.relu = nn.ReLU()
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
-        self.relu1 = nn.LayerChoice([nn.ReLU(), nn.Identity()])
+        # self.relu1 = nn.LayerChoice([nn.ReLU(), nn.Identity()])
+        self.relu1 = nn.ReLU()
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
                                        dilate=replace_stride_with_dilation[0])
-        self.relu2 = nn.LayerChoice([nn.ReLU(), nn.Identity()])
+        self.relu2 = nn.ReLU()
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2,
                                        dilate=replace_stride_with_dilation[1])
-        self.relu3 = nn.LayerChoice([nn.ReLU(), nn.Identity()])
+        self.relu3 = nn.ReLU()
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
-        self.relu4 = nn.LayerChoice([nn.ReLU(), nn.Identity()])
+        self.relu4 = nn.ReLU()
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
@@ -116,6 +116,6 @@ class ResNet(nn.Module):
         return self._forward_impl(x)
 
 
-def resnet18(**kwargs: Any) -> ResNet:
+def resnet18(pretrained=True, **kwargs: Any) -> ResNet:
     model = ResNet(ShortcutBlock, [2, 2, 2, 2], **kwargs)
     return model
