@@ -4,12 +4,6 @@ import nni.retiarii.nn.pytorch as nn
 from typing import Type, Any, Callable, Union, List, Optional
 
 
-def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
-    """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=dilation, groups=groups, bias=False, dilation=dilation)
-
-
 def conv1x1(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
@@ -45,8 +39,8 @@ class ShortcutBlock(nn.Module):
                                padding=dilation, groups=groups, bias=False, dilation=dilation)
         self.bn1 = norm_layer(planes)
         self.sim_relu = conv1x1(planes, planes)
-        self.conv2 = nn.Conv2d(inplanes, planes, kernel_size=kernel_size, stride=stride,
-                               padding=dilation, groups=groups, bias=False, dilation=dilation)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=kernel_size, stride=1,
+                               padding=1, groups=1, bias=False, dilation=1)
         self.bn2 = norm_layer(planes)
         self.downsample = downsample
         self.stride = stride
