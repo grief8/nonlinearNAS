@@ -58,16 +58,13 @@ class ResNet(nn.Module):
     def _make_layer(self, block: Type[Union[ShortcutBlock]], planes: int, blocks: int,
                     stride: int = 1, dilate: bool = False) -> nn.Sequential:
         norm_layer = self._norm_layer
-        downsample = None
+        downsample = False
         previous_dilation = self.dilation
         if dilate:
             self.dilation *= stride
             stride = 1
         if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
-                norm_layer(planes * block.expansion),
-            )
+            downsample = True
 
         layers = [nn.LayerChoice([block(self.inplanes, planes, 3, stride, downsample, self.groups,
                                         self.base_width, previous_dilation, norm_layer),
@@ -116,6 +113,6 @@ class ResNet(nn.Module):
         return self._forward_impl(x)
 
 
-def resnet18(**kwargs: Any) -> ResNet:
+def resnet18(pretrained=True, **kwargs: Any) -> ResNet:
     model = ResNet(ShortcutBlock, [2, 2, 2, 2], **kwargs)
     return model

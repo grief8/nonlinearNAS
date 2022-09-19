@@ -21,7 +21,7 @@ class ShortcutBlock(nn.Module):
             planes: int,
             kernel_size: int,
             stride: int = 1,
-            downsample: Optional[nn.Module] = None,
+            downsample: bool = False,
             groups: int = 1,
             base_width: int = 64,
             dilation: int = 1,
@@ -35,14 +35,21 @@ class ShortcutBlock(nn.Module):
         if dilation > 1:
             raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        compensation = int((kernel_size-3)/2)
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=kernel_size, stride=stride,
-                               padding=dilation, groups=groups, bias=False, dilation=dilation)
+                               padding=dilation+compensation, groups=groups, bias=False, dilation=dilation)
         self.bn1 = norm_layer(planes)
         self.sim_relu = conv1x1(planes, planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=kernel_size, stride=1,
-                               padding=1, groups=1, bias=False, dilation=1)
+                               padding=1+compensation, groups=1, bias=False, dilation=1)
         self.bn2 = norm_layer(planes)
-        self.downsample = downsample
+        if downsample:
+            self.downsample = nn.Sequential(
+                    nn.Conv2d(inplanes, planes * self.expansion, kernel_size=kernel_size-2, stride=stride, bias=False, padding=compensation),
+                    norm_layer(planes * self.expansion),
+                )
+        else:
+            self.downsample = None
         self.stride = stride
 
     def forward(self, x: Tensor) -> Tensor:
@@ -57,7 +64,6 @@ class ShortcutBlock(nn.Module):
 
         if self.downsample is not None:
             identity = self.downsample(x)
-
         out = out + identity
 
         return out
