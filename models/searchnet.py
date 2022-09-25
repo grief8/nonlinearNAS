@@ -116,3 +116,8 @@ class ResNet(nn.Module):
 def resnet18(pretrained=True, **kwargs: Any) -> ResNet:
     model = ResNet(ShortcutBlock, [2, 2, 2, 2], **kwargs)
     return model
+
+
+def resnet34(pretrained=True, **kwargs: Any) -> ResNet:
+    model = ResNet(ShortcutBlock, [3, 4, 6, 3], **kwargs)
+    return model

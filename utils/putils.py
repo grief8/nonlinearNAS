@@ -152,6 +152,9 @@ def get_nas_network(args, class_flag=False):
     elif args.net == 'searchresnet18':
         from models.searchnet import resnet18
         net = resnet18
+    elif args.net == 'searchresnet34':
+        from models.searchnet import resnet34
+        net = resnet34
     else:
         print('the network name you have entered is not supported yet')
         sys.exit()
