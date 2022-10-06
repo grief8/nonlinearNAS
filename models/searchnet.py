@@ -126,3 +126,8 @@ def resnet34(pretrained=True, **kwargs: Any) -> ResNet:
 def resnet101(pretrained=True, **kwargs: Any) -> ResNet:
     model = ResNet(ShortcutBlock, [3, 4, 23, 3], **kwargs)
     return model
+
+
+def resnet152(pretrained=True, **kwargs: Any) -> ResNet:
+    model = ResNet(ShortcutBlock, [3, 8, 36, 3], **kwargs)
+    return model
