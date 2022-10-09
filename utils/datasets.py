@@ -135,7 +135,7 @@ class ImagenetDataProvider(DataProvider):
     @property
     def save_path(self):
         if self._save_path is None:
-            self._save_path = '/home/lifabing/data//imagenet'
+            self._save_path = '~/data//imagenet'
         return self._save_path
 
     @property
@@ -258,7 +258,7 @@ class CIFAR100DataProvider(DataProvider):
     @property
     def save_path(self):
         if self._save_path is None:
-            self._save_path = '/home/lifabing/data/'
+            self._save_path = '~/data/'
         return self._save_path
 
     @property
