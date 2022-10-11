@@ -126,9 +126,15 @@ def get_nas_network(args, class_flag=False):
     elif args.net == 'resnet34':
         from models.resnet import resnet34
         net = resnet34
-    elif args.net == 'resnet18':
+    elif args.net == 'resnet152':
         from models.resnet import resnet152
         net = resnet152
+    elif args.net == 'wide_resnet50_2':
+        from models.resnet import wide_resnet50_2
+        net = wide_resnet50_2
+    elif args.net == 'wide_resnet101_2':
+        from models.resnet import wide_resnet101_2
+        net = wide_resnet101_2
     elif args.net == 'vgg16':
         from models.vgg import vgg16_bn
         net = vgg16_bn
