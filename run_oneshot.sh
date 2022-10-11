@@ -48,12 +48,12 @@ function run_proxylessnas() {
   python main.py  \
   --net "${model}" \
   --dataset cifar100 \
-  --data_path /home/lifabing/data/ \
+  --data_path ~/data/ \
   --grad_reg_loss_type "${lossType}" \
   --pretrained \
   --worker_id "$wid" \
   --epochs 300 \
-  --train_batch_size 256 \
+  --train_batch_size 2048 \
   --checkpoint_path "${dir}"/checkpoint.pth \
   --strategy "$strategy"
 }
