@@ -180,7 +180,7 @@ class Retrain:
                 regularization_loss = 0
                 for param in self.model.parameters():
                     regularization_loss += torch.sum(abs(param))
-                loss = ce_loss + reg_lambda * (expected_latency - self.ref_latency) / self.ref_latency * regularization_loss
+                loss = ce_loss + reg_lambda * expected_latency / self.ref_latency * regularization_loss
             elif self.reg_loss_type == 'raw':
                 loss = ce_loss
             else:
