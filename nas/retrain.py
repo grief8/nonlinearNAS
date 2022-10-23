@@ -178,6 +178,12 @@ class Retrain:
                 reg_lambda = self.reg_loss_params.get('lambda', 2e-1)
                 reg_loss = reg_lambda * (expected_latency - self.ref_latency) / self.ref_latency
                 loss = ce_loss + reg_loss
+            elif self.reg_loss_type == 'snl':
+                reg_lambda = self.reg_loss_params.get('lambda', 2e-1)
+                regularization_loss = 0
+                for param in self.model.parameters():
+                    regularization_loss += torch.sum(abs(param))
+                loss = ce_loss + reg_lambda * (expected_latency - self.ref_latency) / self.ref_latency * regularization_loss
             elif self.reg_loss_type == 'raw':
                 loss = ce_loss
             else:
