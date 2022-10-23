@@ -88,21 +88,17 @@ class Retrain:
         self.ref_latency = self.cal_expected_latency()
 
     def _cal_latency(self):
-        lat = .0
+        relu_count = .0
         idx = 0
         for layer in self.block_latency_table.keys():
             name = layer.split('-')[0]
             if self.hardware.get(name) is None:
                 continue
-            op = self.block_latency_table[layer]
             if name.find('BinaryPReLu') != -1:
                 non = float(torch.sum(self.non_ops[idx].weight))
-                lat += op * self.hardware[name]
-                lat += op * self.hardware['communication'] * (1 - non / self.summary[layer]['output_shape'][1])
+                relu_count += non
                 idx += 1
-            else:
-                lat += op * self.hardware[name]
-        return lat
+        return relu_count
 
     def _cal_throughput_latency(self):
         linear = size2memory(self.in_size) * self.hardware['communication']
@@ -130,10 +126,11 @@ class Retrain:
         return lat / 2
 
     def cal_expected_latency(self):
-        if self.target == 'latency':
-            lat = self._cal_latency()
-        else:
-            lat = self._cal_throughput_latency()
+        lat = self._cal_latency()
+        # if self.target == 'latency':
+        #     lat = self._cal_latency()
+        # else:
+        #     lat = self._cal_throughput_latency()
         return lat
 
     def run(self):
