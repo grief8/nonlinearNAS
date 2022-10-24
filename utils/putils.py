@@ -170,7 +170,7 @@ def generate_arch(checkpoint_prob_path, output_path=None):
 
 
 class BinaryPReLu(nn.Module):
-    def __init__(self, num_parameters=1, init=0.25,
+    def __init__(self, num_parameters=1, init=0.5,
                  device=None, dtype=None):
         super(BinaryPReLu, self).__init__()
         factory_kwargs = {'device': device, 'dtype': dtype}
