@@ -178,9 +178,8 @@ class Retrain:
             else:
                 ce_loss = self.criterion(output, labels)
             expected_latency = self.cal_expected_latency()
-            print(expected_latency)
+            import math
             if self.reg_loss_type == 'mul#log':
-                import math
                 alpha = self.reg_loss_params.get('alpha', 1)
                 beta = self.reg_loss_params.get('beta', 0.6)
                 # noinspection PyUnresolvedReferences
@@ -191,11 +190,14 @@ class Retrain:
                 reg_loss = reg_lambda * (expected_latency - self.ref_latency) / self.ref_latency
                 loss = ce_loss + reg_loss
             elif self.reg_loss_type == 'snl':
-                reg_lambda = self.reg_loss_params.get('lambda', 2e-1)
                 regularization_loss = 0
                 for param in self.model.parameters():
                     regularization_loss += torch.sum(abs(param))
-                loss = ce_loss + reg_lambda * self.ref_latency / expected_latency * regularization_loss
+                if self.ref_latency / expected_latency > 1:
+                    reg_lambda = math.log(self.ref_latency / expected_latency)
+                else:
+                    reg_lambda = math.log(expected_latency / self.ref_latency)
+                loss = ce_loss + reg_lambda * regularization_loss * 0.001
             elif self.reg_loss_type == 'raw':
                 loss = ce_loss
             else:
