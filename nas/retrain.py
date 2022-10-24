@@ -109,7 +109,7 @@ class Retrain:
             if self.hardware.get(name) is None:
                 continue
             if name.find('BinaryPReLu') != -1:
-                non = float(torch.sum(self.non_ops[idx].weight)) * self.summary[layer]['output_shape'][2] * self.summary[layer]['output_shape'][3]
+                non = float(torch.abs(torch.sum(self.non_ops[idx].weight))) * self.summary[layer]['output_shape'][2] * self.summary[layer]['output_shape'][3]
                 relu_count += non
                 idx += 1
         return relu_count
@@ -178,6 +178,7 @@ class Retrain:
             else:
                 ce_loss = self.criterion(output, labels)
             expected_latency = self.cal_expected_latency()
+            print(expected_latency)
             if self.reg_loss_type == 'mul#log':
                 import math
                 alpha = self.reg_loss_params.get('alpha', 1)

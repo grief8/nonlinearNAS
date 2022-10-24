@@ -128,5 +128,6 @@ if __name__ == "__main__":
                       target=args.strategy,
                       grad_reg_loss_type=args.grad_reg_loss_type,
                       grad_reg_loss_params=grad_reg_loss_params,
-                      search_flag=False)
+                      reduce_portion=args.reduce_portion,
+                      search_flag=True)
     trainer.run()
