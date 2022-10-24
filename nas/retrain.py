@@ -52,7 +52,7 @@ def _get_module_with_type(root_module, type_name, modules):
 
 class Retrain:
     def __init__(self, model, optimizer, device, data_provider, n_epochs, export_path, hardware,
-                 target, grad_reg_loss_type, grad_reg_loss_params=None, search_flag=True):
+                 target, reduce_portion, grad_reg_loss_type, grad_reg_loss_params=None, search_flag=True):
         self.model = model
         self.optimizer = optimizer
         self.device = device
@@ -85,7 +85,21 @@ class Retrain:
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
         # binary is initialized as ReLU
         self.target = target
-        self.ref_latency = self.cal_expected_latency()
+        self.ref_latency = self._cal_total_relu() * reduce_portion
+
+    def _cal_total_relu(self):
+        relu_count = .0
+        idx = 0
+        for layer in self.block_latency_table.keys():
+            name = layer.split('-')[0]
+            if self.hardware.get(name) is None:
+                continue
+            if name.find('BinaryPReLu') != -1:
+                non = self.summary[layer]['output_shape'][1] * self.summary[layer]['output_shape'][2] * self.summary[layer]['output_shape'][3]
+                relu_count += non
+                idx += 1
+        print('network relu count', relu_count)
+        return relu_count
 
     def _cal_latency(self):
         relu_count = .0
@@ -95,7 +109,7 @@ class Retrain:
             if self.hardware.get(name) is None:
                 continue
             if name.find('BinaryPReLu') != -1:
-                non = float(torch.sum(self.non_ops[idx].weight))
+                non = float(torch.sum(self.non_ops[idx].weight)) * self.summary[layer]['output_shape'][2] * self.summary[layer]['output_shape'][3]
                 relu_count += non
                 idx += 1
         return relu_count
@@ -180,7 +194,7 @@ class Retrain:
                 regularization_loss = 0
                 for param in self.model.parameters():
                     regularization_loss += torch.sum(abs(param))
-                loss = ce_loss + reg_lambda * expected_latency / self.ref_latency * regularization_loss
+                loss = ce_loss + reg_lambda * self.ref_latency / expected_latency * regularization_loss
             elif self.reg_loss_type == 'raw':
                 loss = ce_loss
             else:

@@ -28,6 +28,7 @@ if __name__ == "__main__":
     parser.add_argument("--pretrained", default=False, action="store_true")
     parser.add_argument("--epochs", default=120, type=int)
     parser.add_argument("--log_frequency", default=10, type=int)
+    parser.add_argument('--reduce_portion', default=0.3, type=float)
 
     parser.add_argument("--no_decay_keys", default='bn', type=str, choices=[None, 'bn', 'bn#bias'])
     parser.add_argument('--grad_reg_loss_type', default='raw', type=str, choices=['add#linear', 'mul#log', 'raw', 'snl'])

@@ -55,7 +55,8 @@ function run_proxylessnas() {
   --epochs 300 \
   --train_batch_size 2048 \
   --checkpoint_path "${dir}"/checkpoint.pth \
-  --strategy "$strategy"
+  --strategy "$strategy" \
+  --reduce_portion $5
 }
 #for constraint in 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0;
 #do
@@ -63,4 +64,4 @@ function run_proxylessnas() {
 #done;
 #run_proxylessnas "$1" add#linear 0  "$2" &
 #run_proxylessnas "$1" mul#log 0 "$2"
-run_proxylessnas "$1" snl 0 "$2"
+run_proxylessnas "$1" snl 0 "$2" "$3"
