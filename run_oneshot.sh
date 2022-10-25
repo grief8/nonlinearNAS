@@ -42,7 +42,7 @@ function run_proxylessnas() {
   wid=$3
   strategy=$4
   echo start "${model}" "${lossType}" "$wid" "${strategy}"
-  dir=./checkpoints/channel/"${model}"/"${strategy}"/"${lossType}"
+  dir=./checkpoints/channel/"${model}"/"${strategy}"/"${lossType}"/"${5}"
   #  search
   mkdir -p "${dir}"
   python main.py  \
