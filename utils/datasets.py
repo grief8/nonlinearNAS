@@ -198,7 +198,7 @@ class CIFAR100DataProvider(DataProvider):
         self._save_path = save_path
         train_transforms = self.build_train_transform(distort_color)
         print(self.train_path)
-        train_dataset = datasets.CIFAR100(root=self.train_path, train=True, transform=train_transforms)
+        train_dataset = datasets.CIFAR100(root=self.train_path, train=True, transform=train_transforms, download=True)
 
         if valid_size is not None:
             if isinstance(valid_size, float):
