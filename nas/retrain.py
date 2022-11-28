@@ -56,10 +56,11 @@ class Retrain:
 
     def run(self):
         self.model = torch.nn.DataParallel(self.model)
-        self.teacher = torch.nn.DataParallel(self.teacher)
         self.model.to(self.device)
-        self.teacher.to(self.device)
-        self.teacher.eval()
+        if self.teacher is not None:
+            self.teacher = torch.nn.DataParallel(self.teacher)
+            self.teacher.to(self.device)
+            self.teacher.eval()
         # train
         self.train()
         # validate
@@ -84,16 +85,19 @@ class Retrain:
                 students_loss = cross_entropy_with_label_smoothing(output, labels, label_smoothing)
             else:
                 students_loss = self.criterion(output, labels)
-            # 教师模型预测
-            with torch.no_grad():
-                teachers_preds = self.teacher(images)
-                # 计算蒸馏后的预测结果及soft_loss
-                ditillation_loss = self.soft_loss(
-                    F.softmax(output / self.temp, dim=1),
-                    F.softmax(teachers_preds / self.temp, dim=1)
-                )
-                # 将hard_loss和soft_loss加权求和
-                loss = self.alpha * students_loss + (1 - self.alpha) * ditillation_loss
+            # teacher model
+            if self.teacher is not None:
+                with torch.no_grad():
+                    teachers_preds = self.teacher(images)
+                    # calculate soft_loss
+                    distillation_loss = self.soft_loss(
+                        F.softmax(output / self.temp, dim=1),
+                        F.softmax(teachers_preds / self.temp, dim=1)
+                    )
+                    # add hard_loss and soft_loss
+                    loss = self.alpha * students_loss + (1 - self.alpha) * distillation_loss
+            else:
+                loss = students_loss
             acc1, acc5 = accuracy(output, labels, topk=(1, 5))
             losses.update(loss, images.size(0))
             top1.update(acc1[0], images.size(0))
