@@ -89,13 +89,13 @@ class Retrain:
             if self.teacher is not None:
                 with torch.no_grad():
                     teachers_preds = self.teacher(images)
-                    # calculate soft_loss
-                    distillation_loss = self.soft_loss(
-                        F.softmax(output / self.temp, dim=1),
-                        F.softmax(teachers_preds / self.temp, dim=1)
-                    )
-                    # add hard_loss and soft_loss
-                    loss = self.alpha * students_loss + (1 - self.alpha) * distillation_loss
+                # calculate soft_loss
+                distillation_loss = self.soft_loss(
+                    F.softmax(output / self.temp, dim=1),
+                    F.softmax(teachers_preds / self.temp, dim=1)
+                )
+                # add hard_loss and soft_loss
+                loss = self.alpha * students_loss + (1 - self.alpha) * distillation_loss
             else:
                 loss = students_loss
             acc1, acc5 = accuracy(output, labels, topk=(1, 5))
