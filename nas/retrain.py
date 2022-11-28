@@ -4,6 +4,7 @@ import math
 from datetime import timedelta
 import torch
 from torch import nn as nn
+import torch.nn.functional as F
 from nni.nas.pytorch.utils import AverageMeter
 
 def cross_entropy_with_label_smoothing(pred, target, label_smoothing=0.1):
@@ -33,7 +34,7 @@ def accuracy(output, target, topk=(1,)):
 
 
 class Retrain:
-    def __init__(self, model, optimizer, device, data_provider, n_epochs, export_path):
+    def __init__(self, model, optimizer, device, data_provider, n_epochs, export_path, teacher=None):
         self.model = model
         self.optimizer = optimizer
         self.device = device
@@ -47,10 +48,18 @@ class Retrain:
         if os.path.exists(export_path):
             st = torch.load(export_path)
             model.load_state_dict(st)
+        # knowledge distillation
+        self.teacher = teacher
+        self.temp = 7
+        self.alpha = 0.3
+        self.soft_loss = nn.KLDivLoss(reduction='batchmean')
 
     def run(self):
         self.model = torch.nn.DataParallel(self.model)
+        self.teacher = torch.nn.DataParallel(self.teacher)
         self.model.to(self.device)
+        self.teacher.to(self.device)
+        self.teacher.eval()
         # train
         self.train()
         # validate
@@ -72,9 +81,19 @@ class Retrain:
             images, labels = images.to(self.device), labels.to(self.device)
             output = self.model(images)
             if label_smoothing > 0:
-                loss = cross_entropy_with_label_smoothing(output, labels, label_smoothing)
+                students_loss = cross_entropy_with_label_smoothing(output, labels, label_smoothing)
             else:
-                loss = self.criterion(output, labels)
+                students_loss = self.criterion(output, labels)
+            # 教师模型预测
+            with torch.no_grad():
+                teachers_preds = self.teacher(images)
+                # 计算蒸馏后的预测结果及soft_loss
+                ditillation_loss = self.soft_loss(
+                    F.softmax(output / self.temp, dim=1),
+                    F.softmax(teachers_preds / self.temp, dim=1)
+                )
+                # 将hard_loss和soft_loss加权求和
+                loss = self.alpha * students_loss + (1 - self.alpha) * ditillation_loss
             acc1, acc5 = accuracy(output, labels, topk=(1, 5))
             losses.update(loss, images.size(0))
             top1.update(acc1[0], images.size(0))
