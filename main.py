@@ -58,6 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("--strategy", default='latency', type=str, choices=['latency', 'throughput'])
     # configurations for retrain
     parser.add_argument("--exported_arch_path", default='./checkpoints/resnet18/checkpoint.json', type=str)
+    parser.add_argument("--kd_teacher_path", default=None, type=str)
 
     args = parser.parse_args()
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -184,6 +185,14 @@ if __name__ == "__main__":
     elif args.train_mode == 'retrain':
         # this is retrain
         print('this is retrain')
-        trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
-                          export_path=args.exported_arch_path.rstrip('.json') + '.pth')
+        if args.kd_teacher_path is None:
+            trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
+                              export_path=args.exported_arch_path.rstrip('.json') + '.pth')
+        else:
+            from models.teacher import resnet152
+            teacher = resnet152()
+            teacher.load_state_dict(torch.load(args.kd_teacher_path))
+            trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
+                              export_path=args.exported_arch_path.rstrip('.json') + '.pth',
+                              teacher=teacher)
         trainer.run()
