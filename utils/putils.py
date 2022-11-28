@@ -172,7 +172,15 @@ def get_nas_network(args, class_flag=False):
             else:
                 net = net()
         else:
-            net = net(pretrained=args.pretrained)
+            if args.dataset == 'cifar100':
+                n_classes = 100
+            elif args.dataset == 'cifar10':
+                n_classes = 10
+            elif args.dataset == 'imagenet':
+                n_classes = 1000
+            else:
+                n_classes = 1000
+            net = net(pretrained=args.pretrained, num_classes=n_classes)
 
     return net
 
