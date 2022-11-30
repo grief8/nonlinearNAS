@@ -189,8 +189,15 @@ if __name__ == "__main__":
             trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
                               export_path=args.exported_arch_path.rstrip('.json') + '.pth')
         else:
-            from models.teacher import resnet152
-            teacher = resnet152()
+            if args.dataset == 'imagenet':
+                from models.volo import volo_d2
+                teacher = volo_d2()
+            elif args.dataset == 'cifar100':
+                from models.teacher import resnet152
+                teacher = resnet152()
+            else:
+                print('invalid dataset')
+                sys.exit(1)
             teacher.load_state_dict(torch.load(args.kd_teacher_path))
             trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
                               export_path=args.exported_arch_path.rstrip('.json') + '.pth',
