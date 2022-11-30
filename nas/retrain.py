@@ -91,7 +91,7 @@ class Retrain:
                     teachers_preds = self.teacher(images)
                 # calculate soft_loss
                 distillation_loss = self.soft_loss(
-                    F.softmax(output / self.temp, dim=1),
+                    F.log_softmax(output / self.temp, dim=1),
                     F.softmax(teachers_preds / self.temp, dim=1)
                 )
                 # add hard_loss and soft_loss
