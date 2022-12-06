@@ -57,15 +57,16 @@ if __name__ == '__main__':
         arch_path = base_path + '{}/{}/{}/checkpoint2.json'.format(args.net, args.strategy, args.grad_reg_loss_type)
     else:
         arch_path = base_path + '{}/{}/{}/checkpoint.json'.format(args.net, args.strategy, args.grad_reg_loss_type)
-    if not os.path.exists(arch_path):
-        if not os.path.exists(arch_path+'.prob'):
-            sys.exit(0)
-        generate_arch(arch_path+'.prob')
-        arch_path += '.tmp'
-    print(args.net, args.dataset, args.strategy, args.grad_reg_loss_type)
-    args.exported_arch_path = arch_path
+    # if not os.path.exists(arch_path):
+    #     if not os.path.exists(arch_path+'.prob'):
+    #         sys.exit(0)
+    #     generate_arch(arch_path+'.prob')
+    #     arch_path += '.tmp'
+    # print(args.net, args.dataset, args.strategy, args.grad_reg_loss_type)
+    # args.exported_arch_path = arch_path
 
-    analyze_relu_count(args)
+    # analyze_relu_count(args)
+    analyze_relu_count(args, supermodel=True)
     # hardware = {'nonlinear': 3.0, 'linear': 0.5, 'communication': 4.0}
     # try:
     #     analyze_arch(args, hardware)
