@@ -267,5 +267,5 @@ def get_relu_count(model, input_size, batch_size=-1, device="cuda", ops=None):
                 nonlinear_flag = True
                 break
         if nonlinear_flag:
-            total += reduce(lambda x, y: x * y, size2memory(summary[layer]["output_shape"]))
+            total += abs(reduce(lambda x, y: x * y, summary[layer]["output_shape"]))
     return total
