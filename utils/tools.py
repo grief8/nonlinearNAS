@@ -47,7 +47,7 @@ def model_latency(model, input_size, hardware, batch_size=1, device="cuda"):
                 output_shape = list(output.size())[1:]
             module_idx = len(summary)
             m_key = "%s_%s_%s_%i" % (
-                class_name, repr_shape(input_shape), repr_shape(output_shape), module_idx+1)
+                class_name, repr_shape(input_shape), repr_shape(output_shape), module_idx + 1)
             summary[m_key] = OrderedDict()
             summary[m_key]["input_shape"] = input_shape
             summary[m_key]["output_shape"] = output_shape
@@ -253,3 +253,19 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
     if linear > 0.0:
         stages.append(linear)
     return 1000 / total, stages
+
+
+def get_relu_count(model, input_size, batch_size=-1, device="cuda", ops=None):
+    if ops is None:
+        ops = ['ReLU', 'MaxPool']
+    summary = model_summary(model, input_size, batch_size, device)
+    total = 0.0
+    for layer in summary:
+        nonlinear_flag = False
+        for op in ops:
+            if layer.find(op) != -1:
+                nonlinear_flag = True
+                break
+        if nonlinear_flag:
+            total += reduce(lambda x, y: x * y, size2memory(summary[layer]["output_shape"]))
+    return total
