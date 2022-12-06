@@ -85,6 +85,7 @@ class ResNet(nn.Module):
                                                 base_width=self.base_width, dilation=self.dilation,
                                                 norm_layer=norm_layer),
                                           ]))
+            layers.append(nn.ReLU())
         return nn.Sequential(*layers)
 
     def _forward_impl(self, x: Tensor) -> Tensor:
