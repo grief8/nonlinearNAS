@@ -21,12 +21,18 @@ def analyze_arch(args, hardware):
         # print(predict_throughput(model, hardware, args.input_size[1:]))
 
 
-def analyze_relu_count(args):
-    from nni.retiarii import fixed_arch
-    with fixed_arch(args.exported_arch_path, verbose=False):
+def analyze_relu_count(args, supermodel=False):
+    if not supermodel:
+        from nni.retiarii import fixed_arch
+        with fixed_arch(args.exported_arch_path, verbose=False):
+            model = get_nas_network(args)
+            print(get_relu_count(model, args.input_size[1:], device='cpu'))
+            print()
+    else:
         model = get_nas_network(args)
         print(get_relu_count(model, args.input_size[1:], device='cpu'))
         print()
+
 
 
 if __name__ == '__main__':
