@@ -84,7 +84,7 @@ class AggregateBlock(nn.Module):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
 
-        self.layers = []
+        self.layers = nn.ModuleList()
         compensation = stride
         for idx, inp in enumerate(inplanes):
             self.layers.append(nn.Sequential(
