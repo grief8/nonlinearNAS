@@ -88,7 +88,7 @@ class CifarDenseNet(nn.Module):
         #                              num_init_features*16, 1)
 
         # Linear layer
-        self.classifier = nn.Linear(2048, num_classes)
+        self.classifier = nn.Linear(num_init_features*8, num_classes)
 
         # Official init from torch repo.
         for m in self.modules():
@@ -106,6 +106,7 @@ class CifarDenseNet(nn.Module):
         features.insert(0, self.block2(features))
         out = self.block3(features)
 
+        out = F.adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
         out = self.classifier(out)
         return out
