@@ -150,19 +150,19 @@ def get_nas_network(args, class_flag=False):
         from models.shufflenet import ShuffleNetV2OneShot
         net = ShuffleNetV2OneShot
     elif args.net == 'searchresnet18':
-        from models.searchnet import resnet18
+        from models.searchresnet import resnet18
         net = resnet18
     elif args.net == 'searchresnet34':
-        from models.searchnet import resnet34
+        from models.searchresnet import resnet34
         net = resnet34
     elif args.net == 'searchresnet101':
-        from models.searchnet import resnet101
+        from models.searchresnet import resnet101
         net = resnet101
     elif args.net == 'searchresnet152':
-        from models.searchnet import resnet152
+        from models.searchresnet import resnet152
         net = resnet152
     elif args.net == 'searchdensenet':
-        from models.searchnet import DenseNet
+        from models.searchdensenet import DenseNet
         net = DenseNet
     else:
         print('the network name you have entered is not supported yet')
