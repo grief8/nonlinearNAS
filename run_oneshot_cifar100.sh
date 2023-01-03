@@ -29,7 +29,7 @@ function run() {
   --gpu \
   --pretrained \
   --worker-id "$wid" \
-  --batch-size 1024 \
+  --batch-size 512 \
   --loss-type "${lossType}" \
   --arc-checkpoint "${dir}"/contraints-"$constraint".json
 }
@@ -56,11 +56,13 @@ function run_proxylessnas() {
   --checkpoint_path "${dir}"/arch_path.pt \
   --exported_arch_path "${dir}"/checkpoint2.json \
   --train_mode "$4" \
-  --strategy "$strategy"
+  --strategy "$strategy" \
+  --kd_teacher_path ~/projects/nonlinearNAS/checkpoints/teacher/cifar_resnet152.pth
 }
 #for constraint in 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0;
 #do
 #  run $constraint "$1" "$2" &
 #done;
-run_proxylessnas "$1" add#linear 0  "$2" "$3" &
-run_proxylessnas "$1" mul#log 0 "$2" "$3"
+#run_proxylessnas "$1" add#linear 0  "$2" "$3" &
+#run_proxylessnas "$1" mul#log 0 "$2" "$3"
+run_proxylessnas "$1" add#linear 0,1,2,3,4,5,6,7 "$2" "$3"
