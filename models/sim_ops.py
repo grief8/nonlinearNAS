@@ -70,12 +70,35 @@ class ShortcutBlock(nn.Module):
         return out
 
 
+class SampleBlock(torch.nn.ModuleDict):
+    def __init__(
+        self,
+        num_layers: int,
+        num_input_features: int,
+        growth_rate: int,
+    ) -> None:
+        super(SampleBlock, self).__init__()
+        for i in range(num_layers):
+            layer = _SampleLayer(
+                num_input_features + i * growth_rate,
+                growth_rate=growth_rate
+            )
+            self.add_module('denselayer%d' % (i + 1), layer)
+
+    def forward(self, init_features: Tensor) -> Tensor:
+        features = [init_features]
+        for name, layer in self.items():
+            new_features = layer(features)
+            features.append(new_features)
+        return torch.cat(features, 1)
+
+
 class AggregateBlock(nn.Module):
     def __init__(
             self,
             inplanes: list,
             outplanes: int,
-            kernel_size: int,
+            kernel_size: int = 1,
             stride: int = 1,
             groups: int = 1,
             norm_layer: Optional[Callable[..., nn.Module]] = None
@@ -86,33 +109,60 @@ class AggregateBlock(nn.Module):
 
         self.layers = nn.ModuleList()
         compensation = stride
-        for idx, inp in enumerate(inplanes):
-            self.layers.append(nn.Sequential(
+        config = inplanes[:]
+        config.reverse()
+        for idx, inp in enumerate(config):
+            self.layers.insert(0, nn.Sequential(
                 nn.Conv2d(inp, 4 * outplanes, kernel_size=kernel_size, stride=compensation,
                           groups=groups, bias=False),
                 norm_layer(4 * outplanes)
             ))
-            compensation = 2 ** (idx+1)
+            # self.layers.append(nn.Sequential(
+            #     nn.Conv2d(inp, 4 * outplanes, kernel_size=kernel_size, stride=compensation,
+            #               groups=groups, bias=False),
+            #     norm_layer(4 * outplanes)
+            # ))
+            compensation = 2 ** (idx)
         self.transition = nn.Sequential(
-            nn.Conv2d(4 * outplanes, outplanes, kernel_size=3, stride=1,
+            nn.Conv2d(4 * outplanes, outplanes, kernel_size=3, stride=2,
                       padding=1, groups=groups, bias=False),
-            norm_layer(outplanes),
-            nn.ReLU(),
-            nn.AvgPool2d(kernel_size=2, stride=2),
             norm_layer(outplanes),
             nn.ReLU(),
         )
 
     def forward(self, x: List) -> Tensor:
-    # def forward(self, x: List) -> List:
         out = None
         for idx, _ in enumerate(self.layers):
+            # print(x[idx].shape)
             if out is None:
                 out = self.layers[idx](x[idx])
-                # out = [self.layers[idx](x[idx])]
             else:
                 out += self.layers[idx](x[idx])
-                # out.append(self.layers[idx](x[idx]))
 
         out = self.transition(out)
+        return out
+
+
+class _SampleLayer(nn.Module):
+    def __init__(
+            self,
+            inplanes: list,
+            growth_rate: int,
+            groups: int = 1,
+            norm_layer: Optional[Callable[..., nn.Module]] = None
+    ) -> None:
+        super(_SampleLayer, self).__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+
+        self.layer = nn.Sequential(
+            nn.Conv2d(inplanes, growth_rate, kernel_size=3, stride=1,
+                      padding=1, groups=groups, bias=False),
+            norm_layer(growth_rate),
+            nn.ReLU(),
+        )
+
+    def forward(self, x: List[Tensor]) -> Tensor:
+        out = torch.cat(x, 1)
+        out = self.layer(out)
         return out
