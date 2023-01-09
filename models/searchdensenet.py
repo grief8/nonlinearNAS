@@ -86,12 +86,14 @@ class DenseNet(nn.Module):
 class CifarDenseNet(nn.Module):
     def __init__(
         self,
+        growth_rate: int = 32,
         num_init_features: int = 64,
+        block_config: Tuple[int, int, int, int] = (6, 12, 16),
         num_classes: int = 1000,
         pretrained: bool = False
     ) -> None:
 
-        super(CifarDenseNet, self).__init__()
+        super(DenseNet, self).__init__()
 
         # First convolution
         self.features = nn.Sequential(OrderedDict([
@@ -99,17 +101,31 @@ class CifarDenseNet(nn.Module):
                                 padding=3, bias=False)),
             ('norm0', nn.BatchNorm2d(num_init_features)),
             ('relu0', nn.ReLU(inplace=True)),
+            ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
         ]))
 
-        self.block1 = AggregateBlock([num_init_features], num_init_features*2, 1)
-        self.block2 = AggregateBlock([num_init_features*2, num_init_features], num_init_features*4, 1)
-        self.block3 = AggregateBlock([num_init_features*4, num_init_features*2, num_init_features],
-                                     num_init_features*8, 1)
-        # self.block4 = AggregateBlock([num_init_features*8, num_init_features*4, num_init_features*2, num_init_features],
-        #                              num_init_features*16, 1)
-
+        self.samples = nn.ModuleList()
+        self.aggeregate = nn.ModuleList()
+        channels = [num_init_features]
+        num_features = num_init_features
+        for i, num_layers in enumerate(block_config):
+            block = SampleBlock(
+                num_layers=num_layers,
+                num_input_features=num_features,
+                growth_rate=growth_rate
+            )
+            self.samples.append(block)
+            num_features = num_features + num_layers * growth_rate
+            if i != len(block_config) - 1:
+                channels.append(num_features)
+                trans = AggregateBlock(inplanes=channels,
+                                    outplanes=num_features // 2)
+                self.aggeregate.append(trans)
+                num_features = num_features // 2
+                channels[-1] = num_features
+        
         # Linear layer
-        self.classifier = nn.Linear(num_init_features*8, num_classes)
+        self.classifier = nn.Linear(num_init_features * 16, num_classes)
 
         # Official init from torch repo.
         for m in self.modules():
@@ -123,11 +139,13 @@ class CifarDenseNet(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         features = [self.features(x)]
-        features.insert(0, self.block1(features))
-        features.insert(0, self.block2(features))
-        out = self.block3(features)
+        for idx in range(len(self.aggeregate)):
+            features.append(self.samples[idx](features[-1]))
+            features[-1] = self.aggeregate[idx](features)
+        out = self.samples[-1](features[-1])
 
         out = F.adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
         out = self.classifier(out)
         return out
+
