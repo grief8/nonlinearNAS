@@ -93,7 +93,7 @@ class CifarDenseNet(nn.Module):
         pretrained: bool = False
     ) -> None:
 
-        super(DenseNet, self).__init__()
+        super(CifarDenseNet, self).__init__()
 
         # First convolution
         self.features = nn.Sequential(OrderedDict([
@@ -125,7 +125,7 @@ class CifarDenseNet(nn.Module):
                 channels[-1] = num_features
         
         # Linear layer
-        self.classifier = nn.Linear(num_init_features * 16, num_classes)
+        self.classifier = nn.Linear(768, num_classes)
 
         # Official init from torch repo.
         for m in self.modules():
