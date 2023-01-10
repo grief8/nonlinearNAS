@@ -147,6 +147,136 @@ class CifarDenseNet(nn.Module):
         return out
 
 
+class SearchDenseNet(nn.Module):
+    def __init__(
+        self,
+        growth_rate: int = 32,
+        num_init_features: int = 64,
+        block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
+        num_classes: int = 1000
+    ) -> None:
+
+        super(SearchDenseNet, self).__init__()
+
+        # First convolution
+        self.features = nn.Sequential(OrderedDict([
+            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
+                                padding=3, bias=False)),
+            ('norm0', nn.BatchNorm2d(num_init_features)),
+            ('relu0', nn.ReLU(inplace=True)),
+            ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
+        ]))
+
+        self.samples = nn.ModuleList()
+        self.aggeregate = nn.ModuleList()
+        channels = [num_init_features]
+        num_features = num_init_features
+        for i, num_layers in enumerate(block_config):
+            block = SampleBlock(
+                num_layers=nn.ValueChoice([i for i in range(1, num_layers)]),
+                num_input_features=num_features,
+                growth_rate=growth_rate
+            )
+            self.samples.append(block)
+            num_features = num_features + num_layers * growth_rate
+            if i != len(block_config) - 1:
+                channels.append(num_features)
+                trans = AggregateBlock(inplanes=channels,
+                                    outplanes=num_features // 2)
+                self.aggeregate.append(trans)
+                num_features = num_features // 2
+                channels[-1] = num_features
+        
+        # Linear layer
+        self.classifier = nn.Linear(num_init_features * 16, num_classes)
+
+        # Official init from torch repo.
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                tnn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                tnn.init.constant_(m.weight, 1)
+                tnn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                tnn.init.constant_(m.bias, 0)
+
+    def forward(self, x: Tensor) -> Tensor:
+        features = [self.features(x)]
+        for idx in range(len(self.aggeregate)):
+            features.append(self.samples[idx](features[-1]))
+            features[-1] = self.aggeregate[idx](features)
+        out = self.samples[-1](features[-1])
+
+        out = F.adaptive_avg_pool2d(out, (1, 1))
+        out = torch.flatten(out, 1)
+        out = self.classifier(out)
+        return out
+
+
+class SearchCifarDenseNet(nn.Module):
+    def __init__(
+        self,
+        growth_rate: int = 32,
+        num_init_features: int = 64,
+        block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
+        num_classes: int = 1000
+    ) -> None:
+
+        super(SearchCifarDenseNet, self).__init__()
+
+        # First convolution
+        self.features = nn.Sequential(OrderedDict([
+            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
+                                padding=1, bias=False)),
+            ('norm0', nn.BatchNorm2d(num_init_features)),
+            ('relu0', nn.ReLU(inplace=True))
+        ]))
+
+        self.samples = nn.ModuleList()
+        self.aggeregate = nn.ModuleList()
+        channels = [num_init_features]
+        num_features = num_init_features
+        for i, num_layers in enumerate(block_config):
+            block = SampleBlock(
+                num_layers=nn.ValueChoice([i for i in range(1, num_layers)]),
+                num_input_features=num_features,
+                growth_rate=growth_rate
+            )
+            self.samples.append(block)
+            num_features = num_features + num_layers * growth_rate
+            if i != len(block_config) - 1:
+                channels.append(num_features)
+                trans = AggregateBlock(inplanes=channels,
+                                    outplanes=num_features // 2)
+                self.aggeregate.append(trans)
+                num_features = num_features // 2
+                channels[-1] = num_features
+        
+        # Linear layer
+        self.classifier = nn.Linear(num_features, num_classes)
+
+        # Official init from torch repo.
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                tnn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                tnn.init.constant_(m.weight, 1)
+                tnn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                tnn.init.constant_(m.bias, 0)
+
+    def forward(self, x: Tensor) -> Tensor:
+        features = [self.features(x)]
+        for idx in range(len(self.aggeregate)):
+            features.append(self.samples[idx](features[-1]))
+            features[-1] = self.aggeregate[idx](features)
+        out = self.samples[-1](features[-1])
+
+        out = F.adaptive_avg_pool2d(out, (1, 1))
+        out = torch.flatten(out, 1)
+        out = self.classifier(out)
+        return out
+
 def densenet121(num_classes: int = 1000, pretrained: bool = False):
     return DenseNet(block_config=[6,12,24,16], growth_rate=32, num_classes=num_classes)
 
@@ -170,3 +300,11 @@ def cifardensenet201(num_classes: int = 100, pretrained: bool = False):
 
 def cifardensenet161(num_classes: int = 100, pretrained: bool = False):
     return CifarDenseNet(block_config=[6,12,36,24], growth_rate=48, num_classes=num_classes)
+
+
+def searchdensenet(num_classes: int = 1000, pretrained: bool = False):
+    return SearchDenseNet(block_config=[6,12,24,16], growth_rate=32, num_classes=num_classes)
+
+
+def searchcifardensenet(num_classes: int = 100, pretrained: bool = False):
+    return SearchCifarDenseNet(block_config=[6,12,24,16], growth_rate=32, num_classes=num_classes)
