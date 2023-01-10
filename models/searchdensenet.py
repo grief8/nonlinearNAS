@@ -88,7 +88,7 @@ class CifarDenseNet(nn.Module):
         self,
         growth_rate: int = 32,
         num_init_features: int = 64,
-        block_config: Tuple[int, int, int, int] = (6, 12, 16),
+        block_config: Tuple[int, int, int, int] = (6, 12, 24),
         num_classes: int = 1000,
         pretrained: bool = False
     ) -> None:
@@ -125,7 +125,7 @@ class CifarDenseNet(nn.Module):
                 channels[-1] = num_features
         
         # Linear layer
-        self.classifier = nn.Linear(768, num_classes)
+        self.classifier = nn.Linear(num_features, num_classes)
 
         # Official init from torch repo.
         for m in self.modules():
