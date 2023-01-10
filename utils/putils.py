@@ -161,12 +161,30 @@ def get_nas_network(args, class_flag=False):
     elif args.net == 'searchresnet152':
         from models.searchresnet import resnet152
         net = resnet152
-    elif args.net == 'searchdensenet':
-        from models.searchdensenet import DenseNet
-        net = DenseNet
-    elif args.net == 'searchcifardensenet':
-        from models.searchdensenet import CifarDenseNet
-        net = CifarDenseNet
+    elif args.net == 'searchdensenet121':
+        from models.searchdensenet import densenet121
+        net = densenet121
+    elif args.net == 'searchdensenet169':
+        from models.searchdensenet import densenet169
+        net = densenet169
+    elif args.net == 'searchdensenet201':
+        from models.searchdensenet import densenet201
+        net = densenet201
+    elif args.net == 'searchdensenet161':
+        from models.searchdensenet import densenet161
+        net = densenet161
+    elif args.net == 'searchcifardensenet121':
+        from models.searchdensenet import cifardensenet121
+        net = cifardensenet121
+    elif args.net == 'searchcifardensenet169':
+        from models.searchdensenet import cifardensenet169
+        net = cifardensenet169
+    elif args.net == 'searchcifardensenet201':
+        from models.searchdensenet import cifardensenet201
+        net = cifardensenet201
+    elif args.net == 'searchcifardensenet161':
+        from models.searchdensenet import cifardensenet161
+        net = cifardensenet161
     else:
         print('the network name you have entered is not supported yet')
         sys.exit()

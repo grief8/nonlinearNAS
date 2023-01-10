@@ -16,8 +16,7 @@ class DenseNet(nn.Module):
         growth_rate: int = 32,
         num_init_features: int = 64,
         block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
-        num_classes: int = 1000,
-        pretrained: bool = False
+        num_classes: int = 1000
     ) -> None:
 
         super(DenseNet, self).__init__()
@@ -89,8 +88,7 @@ class CifarDenseNet(nn.Module):
         growth_rate: int = 32,
         num_init_features: int = 64,
         block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
-        num_classes: int = 1000,
-        pretrained: bool = False
+        num_classes: int = 1000
     ) -> None:
 
         super(CifarDenseNet, self).__init__()
@@ -148,3 +146,27 @@ class CifarDenseNet(nn.Module):
         out = self.classifier(out)
         return out
 
+
+def densenet121(num_classes: int = 1000, pretrained: bool = False):
+    return DenseNet(block_config=[6,12,24,16], growth_rate=32, num_classes=num_classes)
+
+def densenet169(num_classes: int = 1000, pretrained: bool = False):
+    return DenseNet(block_config=[6,12,32,32], growth_rate=32, num_classes=num_classes)
+
+def densenet201(num_classes: int = 1000, pretrained: bool = False):
+    return DenseNet(block_config=[6,12,48,32], growth_rate=32, num_classes=num_classes)
+
+def densenet161(num_classes: int = 1000, pretrained: bool = False):
+    return DenseNet(block_config=[6,12,36,24], growth_rate=48, num_classes=num_classes)
+
+def cifardensenet121(num_classes: int = 100, pretrained: bool = False):
+    return CifarDenseNet(block_config=[6,12,24,16], growth_rate=32, num_classes=num_classes)
+
+def cifardensenet169(num_classes: int = 100, pretrained: bool = False):
+    return CifarDenseNet(block_config=[6,12,32,32], growth_rate=32, num_classes=num_classes)
+
+def cifardensenet201(num_classes: int = 100, pretrained: bool = False):
+    return CifarDenseNet(block_config=[6,12,48,32], growth_rate=32, num_classes=num_classes)
+
+def cifardensenet161(num_classes: int = 100, pretrained: bool = False):
+    return CifarDenseNet(block_config=[6,12,36,24], growth_rate=48, num_classes=num_classes)
