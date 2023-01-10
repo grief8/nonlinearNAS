@@ -88,7 +88,7 @@ class CifarDenseNet(nn.Module):
         self,
         growth_rate: int = 32,
         num_init_features: int = 64,
-        block_config: Tuple[int, int, int, int] = (6, 12, 24),
+        block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
         num_classes: int = 1000,
         pretrained: bool = False
     ) -> None:
@@ -97,11 +97,10 @@ class CifarDenseNet(nn.Module):
 
         # First convolution
         self.features = nn.Sequential(OrderedDict([
-            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
-                                padding=3, bias=False)),
+            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
+                                padding=1, bias=False)),
             ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.ReLU(inplace=True)),
-            ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
+            ('relu0', nn.ReLU(inplace=True))
         ]))
 
         self.samples = nn.ModuleList()
