@@ -104,6 +104,8 @@ def model_summary(model, input_size, batch_size=-1, device="cuda"):
 
             m_key = "%s-%i" % (class_name, module_idx + 1)
             summary[m_key] = OrderedDict()
+            if isinstance(input[0], list):
+                input = input[0]
             summary[m_key]["input_shape"] = list(input[0].size())
             summary[m_key]["input_shape"][0] = batch_size
             if isinstance(output, (list, tuple)):
@@ -257,7 +259,7 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
 
 def get_relu_count(model, input_size, batch_size=-1, device="cuda", ops=None):
     if ops is None:
-        ops = ['ReLU', 'MaxPool']
+        ops = ['ReLU']
     summary = model_summary(model, input_size, batch_size, device)
     total = 0.0
     for layer in summary:
