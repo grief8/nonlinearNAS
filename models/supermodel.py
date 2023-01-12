@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import nni.nas.nn.pytorch as nn
 from typing import Tuple, Type, Any, Callable, Union, List, Optional
 from nni.nas.hub.pytorch.nasnet import OPS
+from nni.nas import model_wrapper
 
 
 class _SampleLayer(nn.nn.Module):
@@ -38,7 +39,7 @@ class _SampleLayer(nn.nn.Module):
                 nn.nn.Conv2d(inplanes, inplanes//4, kernel_size=1, stride=1),
                 nn.LayerChoice([OPS[op](inplanes//4, 1, True) for op in self.SAMPLE_OPS]),
                 norm_layer(inplanes//4),
-                nn.nn.Relu()
+                nn.nn.ReLU()
             ))
         # feature aggregation
         self.agg_node = nn.nn.Sequential(
@@ -52,9 +53,9 @@ class _SampleLayer(nn.nn.Module):
         out = None
         for idx, _ in enumerate(self.paths):
             if out is None:
-                out = self.paths[idx](x[idx])
+                out = self.paths[idx](x)
             else:
-                out += self.paths[idx](x[idx])
+                out = out + self.paths[idx](x)
         # maybe division is needed
         out = self.agg_node(out/3)
         return out
@@ -114,7 +115,7 @@ class TransitionBlock(nn.nn.Module):
             if out is None:
                 out = self.layers[idx](x[idx])
             else:
-                out += self.layers[idx](x[idx])
+                out = out + self.layers[idx](x[idx])
 
         out = self.transition(out)
         return out
@@ -137,7 +138,7 @@ class Supermodel(nn.nn.Module):
                 ('conv0', nn.nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
                                     padding=3, bias=False)),
                 ('norm0', nn.nn.BatchNorm2d(num_init_features)),
-                ('relu0', nn.nn.ReLU(inplace=True)),
+                ('relu0', nn.nn.ReLU()),
                 ('pool0', nn.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
             ]))
         else:
@@ -145,7 +146,7 @@ class Supermodel(nn.nn.Module):
             ('conv0', nn.nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
                                 padding=1, bias=False)),
             ('norm0', nn.nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.nn.ReLU(inplace=True)),
+            ('relu0', nn.nn.ReLU()),
         ]))
 
         self.samples = nn.nn.ModuleList()
@@ -168,7 +169,7 @@ class Supermodel(nn.nn.Module):
                 channels[-1] = num_features
         
         # Linear layer
-        self.classifier = nn.nn.Linear(num_init_features * 16, num_classes)
+        self.classifier = nn.nn.Linear(num_init_features * 8, num_classes)
 
         # Official init from torch repo.
         for m in self.modules():
@@ -183,10 +184,10 @@ class Supermodel(nn.nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         features = [self.features(x)]
         for idx in range(len(self.aggeregate)):
-            features.append(self.samples[idx](features[-1]))
+            features.append(self.samples[idx](features[-1].clone()))
             features[-1] = self.aggeregate[idx](features)
-        out = self.samples[-1](features[-1])
-
+        out = self.samples[-1](features[-1].clone())
+        
         out = F.adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
         out = self.classifier(out)

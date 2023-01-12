@@ -4,7 +4,7 @@ import sys
 from collections import OrderedDict
 
 import torch
-import nni.retiarii.nn.pytorch as nn
+import nni.nas.nn.pytorch as nn
 from utils.tools import model_latency, size2memory
 
 _logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class NonlinearLatencyEstimator:
                 layer_table = OrderedDict()
                 if len(choices) <= idx:
                     continue
-                for i, choice in enumerate(choices[idx].choices):
+                for i, choice in enumerate(list(choices[idx])):
                     table, lat = model_latency(choice, in_size[:], self.hardware)
                     layer_table[str(i)] = table
                     if i == 0:

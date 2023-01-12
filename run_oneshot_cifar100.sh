@@ -51,8 +51,8 @@ function run_proxylessnas() {
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
   --pretrained \
-  --epochs 300 \
-  --train_batch_size 2048 \
+  --epochs 200 \
+  --train_batch_size 256 \
   --checkpoint_path "${dir}"/arch_path.pt \
   --exported_arch_path "${dir}"/checkpoint2.json \
   --train_mode "$4" \
@@ -65,4 +65,4 @@ function run_proxylessnas() {
 #done;
 #run_proxylessnas "$1" add#linear 0  "$2" "$3" &
 #run_proxylessnas "$1" mul#log 0 "$2" "$3"
-run_proxylessnas "$1" add#linear 0,1,2,3,4,5,6,7 "$2" "$3"
+run_proxylessnas "$1" add#linear 0 "$2" "$3"

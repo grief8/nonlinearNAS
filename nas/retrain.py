@@ -5,7 +5,7 @@ from datetime import timedelta
 import torch
 from torch import nn as nn
 import torch.nn.functional as F
-from nni.nas.pytorch.utils import AverageMeter
+from nni.retiarii.oneshot.pytorch.utils import AverageMeter
 
 def cross_entropy_with_label_smoothing(pred, target, label_smoothing=0.1):
     logsoftmax = nn.LogSoftmax()
