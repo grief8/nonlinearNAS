@@ -35,6 +35,7 @@ class DenseNet(nn.Module):
         channels = [num_init_features]
         num_features = num_init_features
         for i, num_layers in enumerate(block_config):
+            block = []
             block = SampleBlock(
                 num_layers=num_layers,
                 num_input_features=num_features,
@@ -237,8 +238,11 @@ class SearchCifarDenseNet(nn.Module):
         channels = [num_init_features]
         num_features = num_init_features
         for i, num_layers in enumerate(block_config):
+            nv = [i for i in range(1, num_layers)]
+            blocks = [nn.Identity()]
+            # for
             block = SampleBlock(
-                num_layers=nn.ValueChoice([i for i in range(1, num_layers)]),
+                num_layers=nn.ModelParameterChoice(nv),
                 num_input_features=num_features,
                 growth_rate=growth_rate
             )
