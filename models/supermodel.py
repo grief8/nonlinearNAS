@@ -19,8 +19,8 @@ class _SampleLayer(nn.nn.Module):
         'avg_pool_3x3',
         'max_pool_3x3',
         'dil_sep_conv_3x3',
-        'conv_3x1_1x3',
-        'conv_7x1_1x7',
+        # 'conv_3x1_1x3',
+        # 'conv_7x1_1x7',
     ]
 
     def __init__(
