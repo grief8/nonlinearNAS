@@ -6,8 +6,6 @@ import nni.nas.nn.pytorch as nn
 from typing import Tuple, Type, Any, Callable, Union, List, Optional
 from nni.nas.hub.pytorch.nasnet import OPS
 
-from sim_ops import AggregateBlock
-
 
 class _SampleLayer(nn.nn.Module):
     SAMPLE_OPS = [
@@ -82,32 +80,32 @@ class SampleBlock(torch.nn.ModuleDict):
         return features[-1]
 
 
-class TransitionBlock(nn.Module):
+class TransitionBlock(nn.nn.Module):
     def __init__(
             self,
             inplanes: list,
             outplanes: int,
-            norm_layer: Optional[Callable[..., nn.Module]] = None
+            norm_layer: Optional[Callable[..., nn.nn.Module]] = None
     ) -> None:
         super(TransitionBlock, self).__init__()
         if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
+            norm_layer = nn.nn.BatchNorm2d
 
-        self.layers = nn.ModuleList()
+        self.layers = nn.nn.ModuleList()
         compensation = 1
         config = inplanes[:]
         config.reverse()
         for idx, inp in enumerate(config):
-            self.layers.insert(0, nn.Sequential(
-                nn.Conv2d(inp, outplanes, kernel_size=1, stride=compensation, bias=False),
+            self.layers.insert(0, nn.nn.Sequential(
+                nn.nn.Conv2d(inp, outplanes, kernel_size=1, stride=compensation, bias=False),
                 norm_layer(outplanes)
             ))
             compensation = 2 ** (idx)
         self.transition = nn.Sequential(
-            nn.Conv2d(outplanes, outplanes, kernel_size=3, stride=2,
+            nn.nn.Conv2d(outplanes, outplanes, kernel_size=3, stride=2,
                       padding=1, bias=False),
             norm_layer(outplanes),
-            nn.ReLU(),
+            nn.nn.ReLU(),
         )
 
     def forward(self, x: List) -> Tensor:
@@ -122,9 +120,10 @@ class TransitionBlock(nn.Module):
         return out
 
 
-class Supermodel(nn.Module):
+class Supermodel(nn.nn.Module):
     def __init__(
         self,
+        dataset: str = 'imagenet',
         num_init_features: int = 64,
         block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
         num_classes: int = 1000
@@ -133,16 +132,24 @@ class Supermodel(nn.Module):
         super(Supermodel, self).__init__()
 
         # First convolution
-        self.features = nn.Sequential(OrderedDict([
-            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
-                                padding=3, bias=False)),
-            ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.ReLU(inplace=True)),
-            ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
+        if dataset == 'imagenet':
+            self.features = nn.nn.Sequential(OrderedDict([
+                ('conv0', nn.nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
+                                    padding=3, bias=False)),
+                ('norm0', nn.nn.BatchNorm2d(num_init_features)),
+                ('relu0', nn.nn.ReLU(inplace=True)),
+                ('pool0', nn.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
+            ]))
+        else:
+            self.features = nn.nn.Sequential(OrderedDict([
+            ('conv0', nn.nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
+                                padding=1, bias=False)),
+            ('norm0', nn.nn.BatchNorm2d(num_init_features)),
+            ('relu0', nn.nn.ReLU(inplace=True)),
         ]))
 
-        self.samples = nn.ModuleList()
-        self.aggeregate = nn.ModuleList()
+        self.samples = nn.nn.ModuleList()
+        self.aggeregate = nn.nn.ModuleList()
         channels = [num_init_features]
         num_features = num_init_features
         for i, num_layers in enumerate(block_config):
@@ -161,16 +168,16 @@ class Supermodel(nn.Module):
                 channels[-1] = num_features
         
         # Linear layer
-        self.classifier = nn.Linear(num_init_features * 16, num_classes)
+        self.classifier = nn.nn.Linear(num_init_features * 16, num_classes)
 
         # Official init from torch repo.
         for m in self.modules():
-            if isinstance(m, nn.Conv2d):
+            if isinstance(m, nn.nn.Conv2d):
                 nn.nn.init.kaiming_normal_(m.weight)
-            elif isinstance(m, nn.BatchNorm2d):
+            elif isinstance(m, nn.nn.BatchNorm2d):
                 nn.nn.init.constant_(m.weight, 1)
                 nn.nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
+            elif isinstance(m, nn.nn.Linear):
                 nn.nn.init.constant_(m.bias, 0)
 
     def forward(self, x: Tensor) -> Tensor:
@@ -184,3 +191,28 @@ class Supermodel(nn.Module):
         out = torch.flatten(out, 1)
         out = self.classifier(out)
         return out
+
+
+def supermodel121(num_classes: int = 1000, pretrained: bool = False):
+    return Supermodel(block_config=[6,12,24,16], num_classes=num_classes)
+
+def supermodel169(num_classes: int = 1000, pretrained: bool = False):
+    return Supermodel(block_config=[6,12,32,32], num_classes=num_classes)
+
+def supermodel201(num_classes: int = 1000, pretrained: bool = False):
+    return Supermodel(block_config=[6,12,48,32], num_classes=num_classes)
+
+def supermodel161(num_classes: int = 1000, pretrained: bool = False):
+    return Supermodel(block_config=[6,12,36,24], num_classes=num_classes)
+
+def cifarsupermodel121(num_classes: int = 100, pretrained: bool = False):
+    return Supermodel(dataset='cifar', block_config=[6,12,24,16], num_classes=num_classes)
+
+def cifarsupermodel169(num_classes: int = 100, pretrained: bool = False):
+    return Supermodel(dataset='cifar', block_config=[6,12,32,32], num_classes=num_classes)
+
+def cifarsupermodel201(num_classes: int = 100, pretrained: bool = False):
+    return Supermodel(dataset='cifar', block_config=[6,12,48,32], num_classes=num_classes)
+
+def cifarsupermodel161(num_classes: int = 100, pretrained: bool = False):
+    return Supermodel(dataset='cifar', block_config=[6,12,36,24], num_classes=num_classes)

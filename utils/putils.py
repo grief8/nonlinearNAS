@@ -161,36 +161,30 @@ def get_nas_network(args, class_flag=False):
     elif args.net == 'searchresnet152':
         from models.searchresnet import resnet152
         net = resnet152
-    elif args.net == 'searchdensenet121':
-        from models.searchdensenet import densenet121
-        net = densenet121
-    elif args.net == 'searchdensenet169':
-        from models.searchdensenet import densenet169
-        net = densenet169
-    elif args.net == 'searchdensenet201':
-        from models.searchdensenet import densenet201
-        net = densenet201
-    elif args.net == 'searchdensenet161':
-        from models.searchdensenet import densenet161
-        net = densenet161
-    elif args.net == 'searchcifardensenet121':
-        from models.searchdensenet import cifardensenet121
-        net = cifardensenet121
-    elif args.net == 'searchcifardensenet169':
-        from models.searchdensenet import cifardensenet169
-        net = cifardensenet169
-    elif args.net == 'searchcifardensenet201':
-        from models.searchdensenet import cifardensenet201
-        net = cifardensenet201
-    elif args.net == 'searchcifardensenet161':
-        from models.searchdensenet import cifardensenet161
-        net = cifardensenet161
-    elif args.net == 'searchdensenet':
-        from models.searchdensenet import searchdensenet
-        net = searchdensenet
-    elif args.net == 'searchcifardensenet':
-        from models.searchdensenet import searchcifardensenet
-        net = searchcifardensenet
+    elif args.net == 'supermodel121':
+        from models.supermodel import supermodel121
+        net = supermodel121
+    elif args.net == 'supermodel169':
+        from models.supermodel import supermodel169
+        net = supermodel169
+    elif args.net == 'supermodel201':
+        from models.supermodel import supermodel201
+        net = supermodel201
+    elif args.net == 'supermodel161':
+        from models.supermodel import supermodel161
+        net = supermodel161
+    elif args.net == 'searchcifarsupermodel121':
+        from models.supermodel import cifarsupermodel121
+        net = cifarsupermodel121
+    elif args.net == 'searchcifarsupermodel169':
+        from models.supermodel import cifarsupermodel169
+        net = cifarsupermodel169
+    elif args.net == 'searchcifarsupermodel201':
+        from models.supermodel import cifarsupermodel201
+        net = cifarsupermodel201
+    elif args.net == 'searchcifarsupermodel161':
+        from models.supermodel import cifarsupermodel161
+        net = cifarsupermodel161
     else:
         print('the network name you have entered is not supported yet')
         sys.exit()
