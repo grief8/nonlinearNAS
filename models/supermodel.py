@@ -8,7 +8,7 @@ from nni.nas.hub.pytorch.nasnet import OPS
 from nni.nas import model_wrapper
 
 
-class _SampleLayer(nn.nn.Module):
+class _SampleLayer(nn.Module):
     SAMPLE_OPS = [
         'skip_connect',
         'conv_3x3',
@@ -26,27 +26,27 @@ class _SampleLayer(nn.nn.Module):
     def __init__(
             self,
             inplanes: int,
-            norm_layer: Optional[Callable[..., nn.nn.Module]] = None
+            norm_layer: Optional[Callable[..., nn.Module]] = None
     ) -> None:
         super(_SampleLayer, self).__init__()
         if norm_layer is None:
-            norm_layer = nn.nn.BatchNorm2d
+            norm_layer = nn.BatchNorm2d
 
         # extract feature from low dimension
-        self.paths = nn.nn.ModuleList()
+        self.paths = nn.ModuleList()
         for _ in range(3):
-            self.paths.append(nn.nn.Sequential(
-                nn.nn.Conv2d(inplanes, inplanes//4, kernel_size=1, stride=1),
+            self.paths.append(nn.Sequential(
+                nn.Conv2d(inplanes, inplanes//4, kernel_size=1, stride=1),
                 nn.LayerChoice([OPS[op](inplanes//4, 1, True) for op in self.SAMPLE_OPS]),
                 norm_layer(inplanes//4),
-                nn.nn.ReLU()
+                nn.ReLU()
             ))
         # feature aggregation
-        self.agg_node = nn.nn.Sequential(
+        self.agg_node = nn.Sequential(
             norm_layer(inplanes//4),
-            nn.nn.Conv2d(inplanes//4, inplanes, kernel_size=1, stride=1),
+            nn.Conv2d(inplanes//4, inplanes, kernel_size=1, stride=1),
             norm_layer(inplanes),
-            nn.nn.ReLU()
+            nn.ReLU()
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -61,7 +61,7 @@ class _SampleLayer(nn.nn.Module):
         return out
 
 
-class SampleBlock(torch.nn.ModuleDict):
+class SampleBlock(nn.ModuleDict):
     def __init__(
         self,
         num_layers: int,
@@ -81,32 +81,32 @@ class SampleBlock(torch.nn.ModuleDict):
         return features[-1]
 
 
-class TransitionBlock(nn.nn.Module):
+class TransitionBlock(nn.Module):
     def __init__(
             self,
             inplanes: list,
             outplanes: int,
-            norm_layer: Optional[Callable[..., nn.nn.Module]] = None
+            norm_layer: Optional[Callable[..., nn.Module]] = None
     ) -> None:
         super(TransitionBlock, self).__init__()
         if norm_layer is None:
-            norm_layer = nn.nn.BatchNorm2d
+            norm_layer = nn.BatchNorm2d
 
-        self.layers = nn.nn.ModuleList()
+        self.layers = nn.ModuleList()
         compensation = 1
         config = inplanes[:]
         config.reverse()
         for idx, inp in enumerate(config):
-            self.layers.insert(0, nn.nn.Sequential(
-                nn.nn.Conv2d(inp, outplanes, kernel_size=1, stride=compensation, bias=False),
+            self.layers.insert(0, nn.Sequential(
+                nn.Conv2d(inp, outplanes, kernel_size=1, stride=compensation, bias=False),
                 norm_layer(outplanes)
             ))
             compensation = 2 ** (idx)
         self.transition = nn.Sequential(
-            nn.nn.Conv2d(outplanes, outplanes, kernel_size=3, stride=2,
+            nn.Conv2d(outplanes, outplanes, kernel_size=3, stride=2,
                       padding=1, bias=False),
             norm_layer(outplanes),
-            nn.nn.ReLU(),
+            nn.ReLU(),
         )
 
     def forward(self, x: List) -> Tensor:
@@ -121,7 +121,8 @@ class TransitionBlock(nn.nn.Module):
         return out
 
 
-class Supermodel(nn.nn.Module):
+# @model_wrapper
+class Supermodel(nn.Module):
     def __init__(
         self,
         dataset: str = 'imagenet',
@@ -134,23 +135,23 @@ class Supermodel(nn.nn.Module):
 
         # First convolution
         if dataset == 'imagenet':
-            self.features = nn.nn.Sequential(OrderedDict([
-                ('conv0', nn.nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
+            self.features = nn.Sequential(OrderedDict([
+                ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
                                     padding=3, bias=False)),
-                ('norm0', nn.nn.BatchNorm2d(num_init_features)),
-                ('relu0', nn.nn.ReLU()),
-                ('pool0', nn.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
+                ('norm0', nn.BatchNorm2d(num_init_features)),
+                ('relu0', nn.ReLU()),
+                ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
             ]))
         else:
-            self.features = nn.nn.Sequential(OrderedDict([
-            ('conv0', nn.nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
+            self.features = nn.Sequential(OrderedDict([
+            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
                                 padding=1, bias=False)),
-            ('norm0', nn.nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.nn.ReLU()),
+            ('norm0', nn.BatchNorm2d(num_init_features)),
+            ('relu0', nn.ReLU()),
         ]))
 
-        self.samples = nn.nn.ModuleList()
-        self.aggeregate = nn.nn.ModuleList()
+        self.samples = nn.ModuleList()
+        self.aggeregate = nn.ModuleList()
         channels = [num_init_features]
         num_features = num_init_features
         for i, num_layers in enumerate(block_config):
@@ -169,17 +170,17 @@ class Supermodel(nn.nn.Module):
                 channels[-1] = num_features
         
         # Linear layer
-        self.classifier = nn.nn.Linear(num_init_features * 8, num_classes)
+        self.classifier = nn.Linear(num_init_features * 8, num_classes)
 
         # Official init from torch repo.
         for m in self.modules():
-            if isinstance(m, nn.nn.Conv2d):
-                nn.nn.init.kaiming_normal_(m.weight)
-            elif isinstance(m, nn.nn.BatchNorm2d):
-                nn.nn.init.constant_(m.weight, 1)
-                nn.nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.nn.Linear):
-                nn.nn.init.constant_(m.bias, 0)
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.constant_(m.bias, 0)
 
     def forward(self, x: Tensor) -> Tensor:
         features = [self.features(x)]
