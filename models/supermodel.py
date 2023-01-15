@@ -25,40 +25,24 @@ class _SampleLayer(nn.Module):
 
     def __init__(
             self,
-            inplanes: int,
-            norm_layer: Optional[Callable[..., nn.Module]] = None
+            inplanes: int
     ) -> None:
         super(_SampleLayer, self).__init__()
-        if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
-
         # extract feature from low dimension
         self.paths = nn.ModuleList()
-        for _ in range(3):
+        for _ in range(4):
             self.paths.append(nn.Sequential(
-                nn.Conv2d(inplanes, inplanes//4, kernel_size=1, stride=1),
-                nn.LayerChoice([OPS[op](inplanes//4, 1, True) for op in self.SAMPLE_OPS]),
-                norm_layer(inplanes//4),
+                nn.Conv2d(inplanes, inplanes//2, kernel_size=1, stride=1),
+                nn.BatchNorm2d(inplanes//2),
+                nn.LayerChoice([OPS[op](inplanes//2, 1, True) for op in self.SAMPLE_OPS]),
                 nn.ReLU()
             ))
-        # feature aggregation
-        self.agg_node = nn.Sequential(
-            norm_layer(inplanes//4),
-            nn.Conv2d(inplanes//4, inplanes, kernel_size=1, stride=1),
-            norm_layer(inplanes),
-            nn.ReLU()
-        )
-
+            
     def forward(self, x: Tensor) -> Tensor:
-        out = None
+        out = []
         for idx, _ in enumerate(self.paths):
-            if out is None:
-                out = self.paths[idx](x)
-            else:
-                out = out + self.paths[idx](x)
-        # maybe division is needed
-        out = self.agg_node(out/3)
-        return out
+            out.append(self.paths[idx](x))
+        return torch.cat(out, 1)
 
 
 class SampleBlock(nn.ModuleDict):
@@ -70,25 +54,24 @@ class SampleBlock(nn.ModuleDict):
         super(SampleBlock, self).__init__()
         for i in range(num_layers):
             # FIXME: nn.InputChoice maybe needed
-            layer = _SampleLayer(inplanes)
+            layer = _SampleLayer(inplanes * 2 ** i)
             self.add_module('samplelayer%d' % (i + 1), layer)
 
     def forward(self, init_features: Tensor) -> Tensor:
-        features = [init_features] 
+        features = init_features
         for _, layer in self.items():
-            new_features = layer(sum(features)/len(features))
-            features.append(new_features)
-        return features[-1]
+            features = layer(features)
+        return features
 
 
-class TransitionBlock(nn.Module):
+class AggregateBlock(nn.Module):
     def __init__(
             self,
             inplanes: list,
             outplanes: int,
             norm_layer: Optional[Callable[..., nn.Module]] = None
     ) -> None:
-        super(TransitionBlock, self).__init__()
+        super(AggregateBlock, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
 
@@ -102,12 +85,6 @@ class TransitionBlock(nn.Module):
                 norm_layer(outplanes)
             ))
             compensation = 2 ** (idx)
-        self.transition = nn.Sequential(
-            nn.Conv2d(outplanes, outplanes, kernel_size=3, stride=2,
-                      padding=1, bias=False),
-            norm_layer(outplanes),
-            nn.ReLU(),
-        )
 
     def forward(self, x: List) -> Tensor:
         out = None
@@ -117,7 +94,35 @@ class TransitionBlock(nn.Module):
             else:
                 out = out + self.layers[idx](x[idx])
 
-        out = self.transition(out)
+        out = F.relu(out)
+        return out
+
+
+class TransitionBlock(nn.Module):
+    def __init__(
+            self,
+            inplanes: int
+    ) -> None:
+        super(TransitionBlock, self).__init__()
+        self.transition = nn.Sequential(
+            # nn.LayerChoice([
+            #     nn.Sequential(
+            #         nn.Conv2d(inplanes, inplanes, 1, stride=1, padding=0, bias=False),
+            #         nn.BatchNorm2d(inplanes)
+            #     ),
+            #     nn.Sequential(
+            #         nn.Conv2d(inplanes, inplanes, 3, stride=1, padding=1, bias=False),
+            #         nn.BatchNorm2d(inplanes)
+            #     ),
+            # ]),
+            nn.Conv2d(inplanes, inplanes, 1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(inplanes),
+            nn.MaxPool2d(kernel_size=2, stride=2), 
+            nn.ReLU(),
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        out = self.transition(x)
         return out
 
 
@@ -126,8 +131,8 @@ class Supermodel(nn.Module):
     def __init__(
         self,
         dataset: str = 'imagenet',
-        num_init_features: int = 64,
-        block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
+        num_init_features: int = 32,
+        block_config: Tuple[int, int, int, int] = (2, 2, 2, 2),
         num_classes: int = 1000
     ) -> None:
 
@@ -161,16 +166,17 @@ class Supermodel(nn.Module):
                 inplanes=num_features
             )
             self.samples.append(block)
+            num_features = num_features * 2 ** num_layers
             if i != len(block_config) - 1:
                 channels.append(num_features)
-                trans = TransitionBlock(inplanes=channels,
-                                    outplanes=num_features * 2)
+                trans = nn.Sequential(
+                    AggregateBlock(channels, num_features), 
+                    TransitionBlock(inplanes=num_features)
+                ) 
                 self.aggeregate.append(trans)
-                num_features = num_features * 2
-                channels[-1] = num_features
-        
+
         # Linear layer
-        self.classifier = nn.Linear(num_init_features * 8, num_classes)
+        self.classifier = nn.Linear(num_features, num_classes)
 
         # Official init from torch repo.
         for m in self.modules():
@@ -185,9 +191,9 @@ class Supermodel(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         features = [self.features(x)]
         for idx in range(len(self.aggeregate)):
-            features.append(self.samples[idx](features[-1].clone()))
+            features.append(self.samples[idx](features[-1]))
             features[-1] = self.aggeregate[idx](features)
-        out = self.samples[-1](features[-1].clone())
+        out = self.samples[-1](features[-1])
         
         out = F.adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
@@ -195,26 +201,8 @@ class Supermodel(nn.Module):
         return out
 
 
-def supermodel121(num_classes: int = 1000, pretrained: bool = False):
-    return Supermodel(block_config=[6,12,24,16], num_classes=num_classes)
+def supermodel16(num_classes: int = 1000, pretrained: bool = False):
+    return Supermodel(block_config=(2, 2, 2, 2), num_classes=num_classes)
 
-def supermodel169(num_classes: int = 1000, pretrained: bool = False):
-    return Supermodel(block_config=[6,12,32,32], num_classes=num_classes)
-
-def supermodel201(num_classes: int = 1000, pretrained: bool = False):
-    return Supermodel(block_config=[6,12,48,32], num_classes=num_classes)
-
-def supermodel161(num_classes: int = 1000, pretrained: bool = False):
-    return Supermodel(block_config=[6,12,36,24], num_classes=num_classes)
-
-def cifarsupermodel121(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=[6,12,24,16], num_classes=num_classes)
-
-def cifarsupermodel169(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=[6,12,32,32], num_classes=num_classes)
-
-def cifarsupermodel201(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=[6,12,48,32], num_classes=num_classes)
-
-def cifarsupermodel161(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=[6,12,36,24], num_classes=num_classes)
+def cifarsupermodel16(num_classes: int = 100, pretrained: bool = False):
+    return Supermodel(dataset='cifar', block_config=(2, 2, 2, 2), num_classes=num_classes)

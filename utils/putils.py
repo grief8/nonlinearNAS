@@ -162,8 +162,8 @@ def get_nas_network(args, class_flag=False):
         from models.searchresnet import resnet152
         net = resnet152
     elif args.net == 'searchsupermodel121':
-        from models.supermodel import supermodel121
-        net = supermodel121
+        from models.supermodel import supermodel16
+        net = supermodel16
     elif args.net == 'searchsupermodel169':
         from models.supermodel import supermodel169
         net = supermodel169
@@ -173,9 +173,9 @@ def get_nas_network(args, class_flag=False):
     elif args.net == 'searchsupermodel161':
         from models.supermodel import supermodel161
         net = supermodel161
-    elif args.net == 'searchcifarsupermodel121':
-        from models.supermodel import cifarsupermodel121
-        net = cifarsupermodel121
+    elif args.net == 'searchcifarsupermodel16':
+        from models.supermodel import cifarsupermodel16
+        net = cifarsupermodel16
     elif args.net == 'searchcifarsupermodel169':
         from models.supermodel import cifarsupermodel169
         net = cifarsupermodel169
