@@ -93,9 +93,9 @@ class Retrain:
                 distillation_loss = self.soft_loss(
                     F.log_softmax(output / self.temp, dim=1),
                     F.softmax(teachers_preds / self.temp, dim=1)
-                )
+                ) * self.temp * self.temp
                 # add hard_loss and soft_loss
-                loss = self.alpha * students_loss + (1 - self.alpha) * distillation_loss
+                loss = students_loss + distillation_loss 
             else:
                 loss = students_loss
             acc1, acc5 = accuracy(output, labels, topk=(1, 5))
