@@ -47,7 +47,7 @@ class _SampleLayer(nn.Module):
             nn.Sequential(
                 nn.Conv2d(inplanes, inplanes//2, kernel_size=1, stride=1),
                 nn.BatchNorm2d(inplanes//2),
-                OPS['avg_pool_3x3'](inplanes//2, 1, True),,
+                OPS['avg_pool_3x3'](inplanes//2, 1, True),
                 nn.ReLU()),
         ])
             
