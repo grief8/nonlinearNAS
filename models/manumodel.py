@@ -79,8 +79,7 @@ class SampleBlock(nn.ModuleDict):
                 layer = _SampleLayer(inplanes, False)
             self.add_module('samplelayer%d' % (i + 1), layer)
 
-    def forward(self, init_features: Tensor) -> Tensor:
-        features = init_features
+    def forward(self, features: Tensor) -> Tensor:
         for _, layer in self.items():
             features = layer(features)
         return features
