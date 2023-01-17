@@ -35,7 +35,7 @@ class NonlinearLatencyEstimator:
         self.in_size = dummy_input
         self.target = target
         self.block_latency_table, self.total_latency = model_latency(model, dummy_input[1:], hardware)
-        # self.non_ops = _get_module_with_type(model, nn.PReLU, [])
+        # self.non_ops = _get_module_with_type(model, nn.ReLU, [])
         # self.choices = _get_module_with_type(model, nn.LayerChoice, [])
         self._refresh_table(_get_module_with_type(model, nn.LayerChoice, []))
         print('NonlinearLatencyEstimator initialized...')
@@ -72,7 +72,7 @@ class NonlinearLatencyEstimator:
                 for idx, key in enumerate(table):
                     to = 0.0
                     for _, op in enumerate(table[key]):
-                        if op.startswith('PReLU'):
+                        if op.startswith('ReLU'):
                             relu_idx = relu_count.pop(0)
                             to += (size2memory(table[key][op]['input_shape']) + size2memory(
                                 table[key][op]['output_shape'])) \
@@ -83,7 +83,7 @@ class NonlinearLatencyEstimator:
                         else:
                             to += table[key][op]['latency']
                     total += to * layer_choice_prob[idx]
-            elif name.startswith('PReLU'):
+            elif name.startswith('ReLU'):
                 relu_idx = relu_count.pop(0)
                 total += (size2memory(self.block_latency_table[name]['input_shape']) + size2memory(
                     self.block_latency_table[name]['output_shape'])) \
@@ -108,7 +108,7 @@ class NonlinearLatencyEstimator:
                 lin = 0.0
                 sub_seq = []
                 for _, op in enumerate(table[key]):
-                    if op.startswith('PReLU'):
+                    if op.startswith('ReLU'):
                         if lin > 0:
                             sub_seq.append(lin)
                             lin = 0.0
@@ -123,7 +123,7 @@ class NonlinearLatencyEstimator:
                 if lin > 0:
                     sub_seq.append(lin)
                 sequence.extend(sub_seq)
-            elif name.startswith('PReLU'):
+            elif name.startswith('ReLU'):
                 if linear > 0:
                     sequence.append(linear)
                     linear = .0
