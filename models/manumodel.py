@@ -25,9 +25,11 @@ class _SampleLayer(nn.Module):
 
     def __init__(
             self,
-            inplanes: int
+            inplanes: int,
+            add_flag: bool
     ) -> None:
         super(_SampleLayer, self).__init__()
+        self.add_flag = add_flag
         # extract feature from low dimension
         self.paths = nn.ModuleList([
             nn.Sequential(
@@ -55,7 +57,10 @@ class _SampleLayer(nn.Module):
         out = []
         for idx, _ in enumerate(self.paths):
             out.append(self.paths[idx](x))
-        return torch.cat(out, 1)
+        if self.add_flag:
+            return sum(out)
+        else:
+            return torch.cat(out, 1)
 
 
 class SampleBlock(nn.ModuleDict):
@@ -67,7 +72,11 @@ class SampleBlock(nn.ModuleDict):
         super(SampleBlock, self).__init__()
         for i in range(num_layers):
             # FIXME: nn.InputChoice maybe needed
-            layer = _SampleLayer(inplanes * 2 ** i)
+            inplanes = inplanes * 2 ** i
+            if inplanes > 512:
+                layer = _SampleLayer(inplanes, True)
+            else:
+                layer = _SampleLayer(inplanes, False)
             self.add_module('samplelayer%d' % (i + 1), layer)
 
     def forward(self, init_features: Tensor) -> Tensor:
