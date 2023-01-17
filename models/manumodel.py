@@ -25,11 +25,9 @@ class _SampleLayer(nn.Module):
 
     def __init__(
             self,
-            inplanes: int,
-            add_flag: bool
+            inplanes: int
     ) -> None:
         super(_SampleLayer, self).__init__()
-        self.add_flag = add_flag
         # extract feature from low dimension
         self.paths = nn.ModuleList([
             nn.Sequential(
@@ -52,15 +50,16 @@ class _SampleLayer(nn.Module):
                 OPS['avg_pool_3x3'](inplanes//2, 1, True),
                 nn.ReLU()),
         ])
+        self.upsample = nn.Sequential(
+                nn.Conv2d(inplanes//2, inplanes, kernel_size=1, stride=1),
+                nn.BatchNorm2d(inplanes),
+                nn.ReLU())
             
     def forward(self, x: Tensor) -> Tensor:
         out = []
         for idx, _ in enumerate(self.paths):
             out.append(self.paths[idx](x))
-        if self.add_flag:
-            return sum(out)
-        else:
-            return torch.cat(out, 1)
+        return self.upsample(sum(out)) 
 
 
 class SampleBlock(nn.ModuleDict):
@@ -72,12 +71,14 @@ class SampleBlock(nn.ModuleDict):
         super(SampleBlock, self).__init__()
         for i in range(num_layers):
             # FIXME: nn.InputChoice maybe needed
-            inplanes = inplanes * 2 ** i
-            if inplanes > 512:
-                layer = _SampleLayer(inplanes, True)
-            else:
-                layer = _SampleLayer(inplanes, False)
+            layer = _SampleLayer(inplanes)
             self.add_module('samplelayer%d' % (i + 1), layer)
+        layer = nn.Sequential(
+                nn.Conv2d(inplanes, inplanes*2, kernel_size=1, stride=1),
+                nn.BatchNorm2d(inplanes*2),
+                nn.ReLU())
+        self.add_module('uplayer', layer)
+
 
     def forward(self, features: Tensor) -> Tensor:
         for _, layer in self.items():
@@ -187,7 +188,7 @@ class Supermodel(nn.Module):
                 inplanes=num_features
             )
             self.samples.append(block)
-            num_features = num_features * 2 ** num_layers
+            num_features = num_features * 2
             if i != len(block_config) - 1:
                 channels.append(num_features)
                 trans = nn.Sequential(
