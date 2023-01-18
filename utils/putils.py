@@ -192,6 +192,9 @@ def get_nas_network(args, class_flag=False):
         from models.supermodel import cifarsupermodel161
         net = cifarsupermodel161
 
+    elif args.net == 'searchmanumodel16':
+        from models.manumodel import supermodel16
+        net = supermodel16
     elif args.net == 'searchcifarmanumodel16':
         from models.manumodel import cifarsupermodel16
         net = cifarsupermodel16
