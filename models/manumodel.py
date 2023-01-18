@@ -31,35 +31,22 @@ class _SampleLayer(nn.Module):
         # extract feature from low dimension
         self.paths = nn.ModuleList([
             nn.Sequential(
-                nn.Conv2d(inplanes, inplanes//2, kernel_size=1, stride=1),
-                nn.BatchNorm2d(inplanes//2),
-                nn.ReLU()),
+                    nn.Conv2d(inplanes, inplanes, 3, stride=1, padding=1, bias=False),
+                    nn.BatchNorm2d(inplanes, affine=True)
+                ),
             nn.Sequential(
-                nn.Conv2d(inplanes, inplanes//2, kernel_size=1, stride=1),
-                nn.BatchNorm2d(inplanes//2),
-                OPS['conv_3x3'](inplanes//2, 1, True),
-                nn.ReLU()),
-            nn.Sequential(
-                nn.Conv2d(inplanes, inplanes//2, kernel_size=1, stride=1),
-                nn.BatchNorm2d(inplanes//2),
-                OPS['sep_conv_3x3'](inplanes//2, 1, True),
-                nn.ReLU()),
-            nn.Sequential(
-                nn.Conv2d(inplanes, inplanes//2, kernel_size=1, stride=1),
-                nn.BatchNorm2d(inplanes//2),
-                OPS['avg_pool_3x3'](inplanes//2, 1, True),
-                nn.ReLU()),
-        ])
-        self.upsample = nn.Sequential(
-                nn.Conv2d(inplanes//2, inplanes, kernel_size=1, stride=1),
+                nn.Conv2d(inplanes, inplanes, kernel_size=1, stride=1),
                 nn.BatchNorm2d(inplanes),
-                nn.ReLU())
+                # nn.AvgPool2d(2, stride=1, padding=0, count_include_pad=False)
+            ),
+        ])
+        self.relu = nn.ReLU()
             
     def forward(self, x: Tensor) -> Tensor:
         out = []
         for idx, _ in enumerate(self.paths):
             out.append(self.paths[idx](x))
-        return self.upsample(sum(out)) 
+        return self.relu(sum(out))
 
 
 class SampleBlock(nn.ModuleDict):
@@ -74,7 +61,7 @@ class SampleBlock(nn.ModuleDict):
             layer = _SampleLayer(inplanes)
             self.add_module('samplelayer%d' % (i + 1), layer)
         layer = nn.Sequential(
-                nn.Conv2d(inplanes, inplanes*2, kernel_size=1, stride=1),
+                nn.Conv2d(inplanes, inplanes*2, kernel_size=3, stride=1, padding=1),
                 nn.BatchNorm2d(inplanes*2),
                 nn.ReLU())
         self.add_module('uplayer', layer)
@@ -107,6 +94,7 @@ class AggregateBlock(nn.Module):
                 norm_layer(outplanes)
             ))
             compensation = 2 ** (idx)
+        self.relu = nn.ReLU()
 
     def forward(self, x: List) -> Tensor:
         out = None
@@ -116,7 +104,7 @@ class AggregateBlock(nn.Module):
             else:
                 out = out + self.layers[idx](x[idx])
 
-        out = F.relu(out)
+        out = self.relu(out)
         return out
 
 
@@ -224,13 +212,13 @@ class Supermodel(nn.Module):
 
 
 def supermodel16(num_classes: int = 1000, pretrained: bool = False):
-    return Supermodel(block_config=(2, 2, 2, 2), num_classes=num_classes)
+    return Supermodel(block_config=(1, 1, 1, 1), num_classes=num_classes)
 
 def cifarsupermodel16(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=(2, 2, 2, 2), num_classes=num_classes)
+    return Supermodel(dataset='cifar', block_config=(2, 2, 2), num_classes=num_classes)
 
 def cifarsupermodel22(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=(2, 2, 3, 3), num_classes=num_classes)
+    return Supermodel(dataset='cifar', block_config=(2, 2), num_classes=num_classes)
 
 def cifarsupermodel26(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(4, 6, 8, 8), num_classes=num_classes)
