@@ -6,6 +6,7 @@ import torch
 from torch import nn as nn
 import torch.nn.functional as F
 from nni.retiarii.oneshot.pytorch.utils import AverageMeter
+from utils.tools import get_relu_count
 
 def cross_entropy_with_label_smoothing(pred, target, label_smoothing=0.1):
     logsoftmax = nn.LogSoftmax()
@@ -41,6 +42,7 @@ class Retrain:
         self.train_loader = data_provider.train
         self.valid_loader = data_provider.valid
         self.test_loader = data_provider.test
+        self.data_shape = data_provider.data_shape
         self.n_epochs = n_epochs
         self.criterion = nn.CrossEntropyLoss()
         # change it while training
@@ -55,6 +57,10 @@ class Retrain:
         self.soft_loss = nn.KLDivLoss(reduction='batchmean')
 
     def run(self):
+        # print relu_count
+        print('The input data shape is: ', self.data_shape)
+        print('The relu count of current model is: ', get_relu_count(self.model, self.data_shape))
+
         self.model = torch.nn.DataParallel(self.model)
         self.model.to(self.device)
         if self.teacher is not None:
