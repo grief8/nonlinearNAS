@@ -18,7 +18,7 @@ def analyze_arch(args, hardware):
         throughput, stages = predict_throughput(model, hardware, args.input_size[1:], device='cpu')
         # stages.remove(0.0)
         print(throughput)
-        print(max(stages), min(stages), sum(stages)/len(stages))
+        print(max(stages), min(stages), sum(stages) / len(stages))
         print()
         # print(predict_throughput(model, hardware, args.input_size[1:]))
 
@@ -36,10 +36,9 @@ def analyze_relu_count(args, supermodel=False):
         print()
 
 
-
-def get_snl_prediction(model, input_size):
+def get_snl_prediction(model, input_size, ops=None):
     hardware = {'ReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
-                                'communication': 2.0, 'LayerChoice': 0.0}
+                'communication': 2.0, 'LayerChoice': 0.0}
     if ops is None:
         ops = ['ReLU', 'MaxPool', 'LearnableAlpha']
     summary = model_summary(model, input_size)
@@ -52,7 +51,7 @@ def get_snl_prediction(model, input_size):
     stages = []
     for layer in summary:
         nonlinear_flag = False
-        
+
         for op in ops:
             if layer.find(op) != -1:
                 nonlinear_flag = True
@@ -60,9 +59,10 @@ def get_snl_prediction(model, input_size):
         if nonlinear_flag and linear > 0:
             portion = 1
             if op == 'LearnableAlpha':
-                    portion = relu_count[0] / reduce(lambda x, y: x * y, summary[layer]["output_shape"])
+                portion = relu_count[0] / reduce(lambda x, y: x * y, summary[layer]["output_shape"])
             total += max(
-                (hardware['communication'] + hardware['nonlinear'])  * portion * size2memory(summary[layer]["output_shape"]),
+                (hardware['communication'] + hardware['nonlinear']) * portion * size2memory(
+                    summary[layer]["output_shape"]),
                 linear)
             stages.append(linear)
             stages.append((hardware['communication'] + hardware['nonlinear']) * portion *
@@ -95,9 +95,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     model = resnet18_in(num_classes=100, args=args)
-    checkpoint = torch.load(args.checkpoint_path)
+    checkpoint = torch.load(args.checkpoint_path, map_location='cpu')
     model.load_state_dict(checkpoint['state_dict'])
-    get_snl_prediction(model=model, input_size=args.input_size[1:])
+    print(get_relu_count(model, (3, 32, 32), ops=['Alpha']))
+    # get_snl_prediction(model=model, input_size=args.input_size[1:])
     # old
     exit(0)
     base_path = '/home/lifabing/projects/nonlinearNAS/checkpoints/oneshot/'
