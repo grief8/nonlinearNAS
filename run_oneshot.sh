@@ -40,6 +40,7 @@ function run_proxylessnas() {
   lossType=$2
   wid=$3
   strategy=$5
+  batch=$6
   echo start "${model}" "${lossType}" "$wid" "${strategy}"
   dir=./checkpoints/oneshot/"${model}"/"${strategy}"/"${lossType}"
   #  search
@@ -49,16 +50,16 @@ function run_proxylessnas() {
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
   --epochs 120 \
-  --train_batch_size 2048 \
+  --train_batch_size "${batch}" \
   --checkpoint_path "${dir}"/arch_path.pt \
   --exported_arch_path "${dir}"/checkpoint.json \
   --train_mode "$4" \
   --strategy "$strategy" \
-   --kd_teacher_path ./checkpoints/teacher/d2_224_85.2.pth.tar
+  --kd_teacher_path ./checkpoints/teacher/d2_224_85.2.pth.tar
 }
 #for constraint in 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0;
 #do
 #  run $constraint "$1" "$2" &
 #done;
-run_proxylessnas "$1" add#linear 0,1,2,3,4,5,6,7  "$2" "$3"
+run_proxylessnas "$1" add#linear 0,1,2,3,4,5,6,7  "$2" "$3" "$4"
 #run_proxylessnas "$1" mul#log 4,5,6,7 "$2" "$3"
