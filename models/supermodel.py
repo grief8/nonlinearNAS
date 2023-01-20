@@ -4,7 +4,7 @@ from torch import Tensor
 import torch.nn.functional as F
 import nni.nas.nn.pytorch as nn
 from typing import Tuple, Type, Any, Callable, Union, List, Optional
-from nni.nas.hub.pytorch.nasnet import OPS
+from models.ops import OPS, DropPath_
 from nni.nas import model_wrapper
 
 
@@ -17,10 +17,10 @@ class _SampleLayer(nn.Module):
         'sep_conv_5x5',
         'sep_conv_7x7',
         'avg_pool_3x3',
-        'max_pool_3x3',
+        # 'max_pool_3x3',
         'dil_sep_conv_3x3',
-        # 'conv_3x1_1x3',
-        # 'conv_7x1_1x7',
+        'conv_3x1_1x3',
+        'conv_7x1_1x7',
     ]
 
     def __init__(
@@ -29,20 +29,22 @@ class _SampleLayer(nn.Module):
     ) -> None:
         super(_SampleLayer, self).__init__()
         # extract feature from low dimension
-        self.paths = nn.ModuleList()
-        for _ in range(4):
-            self.paths.append(nn.Sequential(
-                nn.Conv2d(inplanes, inplanes//2, kernel_size=1, stride=1),
-                nn.BatchNorm2d(inplanes//2),
-                nn.LayerChoice([OPS[op](inplanes//2, 1, True) for op in self.SAMPLE_OPS]),
-                nn.ReLU()
-            ))
-            
+        self.paths = nn.ModuleList([nn.Sequential(OPS[op](inplanes, 1, True), DropPath_() )  for op in self.SAMPLE_OPS])
+        # self.paths = nn.ModuleList([OPS[op](inplanes, 1, True) for op in self.SAMPLE_OPS])
+        # self.input_switch = nn.InputChoice(n_candidates=len(OPS), n_chosen=4, reduction='sum')        
+
     def forward(self, x: Tensor) -> Tensor:
-        out = []
+        out = None
         for idx, _ in enumerate(self.paths):
-            out.append(self.paths[idx](x))
-        return torch.cat(out, 1)
+            if out is None:
+                out = self.paths[idx](x)
+            else:
+                out = out + self.paths[idx](x)
+        # out = []
+        # for idx, _ in enumerate(self.paths):
+        #     out.append(self.paths[idx](x))
+        # out = self.input_switch(out)
+        return out
 
 
 class SampleBlock(nn.ModuleDict):
@@ -52,10 +54,14 @@ class SampleBlock(nn.ModuleDict):
         inplanes: int,
     ) -> None:
         super(SampleBlock, self).__init__()
-        for i in range(num_layers):
-            # FIXME: nn.InputChoice maybe needed
-            layer = _SampleLayer(inplanes * 2 ** i)
-            self.add_module('samplelayer%d' % (i + 1), layer)
+        layer = nn.Sequential(
+                nn.Conv2d(inplanes, inplanes*2, kernel_size=1, stride=1),
+                nn.BatchNorm2d(inplanes*2),
+            )
+        self.add_module('upsamplelayer', layer)
+        block = _SampleLayer(inplanes*2)
+        self.add_module('samplelayer', nn.Repeat(block, tuple([i+1 for i in range(num_layers)])))
+        self.add_module('relu', nn.ReLU(inplace=True))
 
     def forward(self, init_features: Tensor) -> Tensor:
         features = init_features
