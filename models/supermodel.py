@@ -59,8 +59,12 @@ class SampleBlock(nn.ModuleDict):
                 nn.BatchNorm2d(inplanes*2),
             )
         self.add_module('upsamplelayer', layer)
-        block = _SampleLayer(inplanes*2)
-        self.add_module('samplelayer', nn.Repeat(block, tuple([i+1 for i in range(num_layers)])))
+        for i in range(num_layers):
+            # FIXME: nn.InputChoice maybe needed
+            layer = _SampleLayer(inplanes*2)
+            self.add_module('samplelayer%d' % (i + 1), layer)
+        # block = _SampleLayer(inplanes*2)
+        # self.add_module('samplelayer', nn.Repeat(block, tuple([i+1 for i in range(num_layers)])))
         self.add_module('relu', nn.ReLU(inplace=True))
 
     def forward(self, init_features: Tensor) -> Tensor:
