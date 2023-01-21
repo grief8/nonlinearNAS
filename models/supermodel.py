@@ -95,6 +95,11 @@ class AggregateBlock(nn.Module):
                 norm_layer(outplanes)
             ))
             compensation = 2 ** (idx)
+        self.nonlinear = nn.Sequential(
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.ReLU(inplace=True)
+        )
+        
 
     def forward(self, x: List) -> Tensor:
         out = None
@@ -104,7 +109,7 @@ class AggregateBlock(nn.Module):
             else:
                 out = out + self.layers[idx](x[idx])
 
-        out = F.relu(out)
+        out = self.nonlinear(out)
         return out
 
 
@@ -176,13 +181,10 @@ class Supermodel(nn.Module):
                 inplanes=num_features
             )
             self.samples.append(block)
-            num_features = num_features * 2 ** num_layers
+            num_features = num_features * 2 
             if i != len(block_config) - 1:
                 channels.append(num_features)
-                trans = nn.Sequential(
-                    AggregateBlock(channels, num_features), 
-                    TransitionBlock(inplanes=num_features)
-                ) 
+                trans = AggregateBlock(channels, num_features)
                 self.aggeregate.append(trans)
 
         # Linear layer
