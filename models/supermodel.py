@@ -22,6 +22,7 @@ class _SampleLayer(nn.Module):
         'dil_sep_conv_3x3',
         'conv_3x1_1x3',
         'conv_7x1_1x7',
+        'van_conv_3x3'
     ]
 
     def __init__(

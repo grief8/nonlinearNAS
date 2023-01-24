@@ -62,6 +62,8 @@ OPS = {
             nn.Conv2d(C, C, (7, 1), stride=(stride, 1), padding=(3, 0), bias=False),
             nn.BatchNorm2d(C, affine=affine)
         ),
+    'van_conv_3x3': lambda C, stride, affine:
+        VanConv(C, C, 3, stride, 1, affine=affine),
 }
 
 
@@ -196,3 +198,17 @@ class AuxiliaryHead(nn.Module):
         x = self.features(x)
         x = self.classifier(x.view(x.size(0), -1))
         return x
+
+
+class VanConv(nn.Module):
+    def __init__(self, C_in, C_out, kernel_size, stride, padding, affine=True):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(C_in, C_out, kernel_size, stride, padding, bias=False),
+            nn.BatchNorm2d(C_out, affine=affine),
+            nn.Conv2d(C_out, C_out, kernel_size, 1, padding, dilation=1, bias=False),
+            nn.BatchNorm2d(C_out, affine=affine)
+        )
+
+    def forward(self, x):
+        return self.net(x)
