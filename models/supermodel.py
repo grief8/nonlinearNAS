@@ -214,7 +214,7 @@ class Supermodel(nn.Module):
 
 
 def supermodel16(num_classes: int = 1000, pretrained: bool = False):
-    return Supermodel(block_config=(2, 2, 2, 2), num_classes=num_classes)
+    return Supermodel(block_config=(1, 1, 1, 1), num_classes=num_classes)
 
 def cifarsupermodel16(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(2, 2, 2, 2), num_classes=num_classes)
