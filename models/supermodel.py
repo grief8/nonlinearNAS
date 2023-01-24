@@ -155,16 +155,18 @@ class Supermodel(nn.Module):
 
         # First convolution
         if dataset == 'imagenet':
+            init_stride = 2* 2** (4 - len(block_config))
             self.features = nn.Sequential(OrderedDict([
-                ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
+                ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=dataset,
                                     padding=3, bias=False)),
                 ('norm0', nn.BatchNorm2d(num_init_features)),
                 ('relu0', nn.ReLU()),
                 ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
             ]))
         else:
+            init_stride = 2** (4 - len(block_config))
             self.features = nn.Sequential(OrderedDict([
-            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
+            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=init_stride,
                                 padding=1, bias=False)),
             ('norm0', nn.BatchNorm2d(num_init_features)),
             ('relu0', nn.ReLU()),
@@ -214,10 +216,10 @@ class Supermodel(nn.Module):
 
 
 def supermodel16(num_classes: int = 1000, pretrained: bool = False):
-    return Supermodel(block_config=(2, 2, 2, 2), num_classes=num_classes)
+    return Supermodel(block_config=(1, 1, 1, 1), num_classes=num_classes)
 
 def cifarsupermodel16(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=(2, 2, 2, 2), num_classes=num_classes)
+    return Supermodel(dataset='cifar', block_config=(2, 2), num_classes=num_classes)
 
 def cifarsupermodel22(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(4, 6, 8, 4), num_classes=num_classes)
