@@ -159,7 +159,7 @@ class Supermodel(nn.Module):
         if dataset == 'imagenet':
             init_stride = 2* 2** (4 - len(block_config))
             self.features = nn.Sequential(OrderedDict([
-                ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=dataset,
+                ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=init_stride,
                                     padding=3, bias=False)),
                 ('norm0', nn.BatchNorm2d(num_init_features)),
                 ('relu0', nn.ReLU()),
@@ -218,7 +218,7 @@ class Supermodel(nn.Module):
 
 
 def supermodel16(num_classes: int = 1000, pretrained: bool = False):
-    return Supermodel(block_config=(1, 1, 1, 1), num_classes=num_classes)
+    return Supermodel(block_config=(2, 4), num_classes=num_classes)
 
 def cifarsupermodel16(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(2, 2), num_classes=num_classes)
