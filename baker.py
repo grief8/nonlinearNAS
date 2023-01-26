@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from utils.putils import generate_arch, get_nas_network
 from utils.tools import *
 from nas.proxylessnas import _get_module_with_type
-from exp.cifar_resnet import resnet18_in
+from exp.cifar_resnet import resnet18_in, LearnableAlpha
 
 
 def analyze_arch(args, hardware):
@@ -37,43 +37,49 @@ def analyze_relu_count(args, supermodel=False):
 
 
 def get_snl_prediction(model, input_size, ops=None):
-    hardware = {'ReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
-                'communication': 2.0, 'LayerChoice': 0.0}
+    hardware = {'ReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 3.0, 'BatchNorm2d': 0.05, 'Linear': 0.4, 'MaxPool2d': 3.0, 
+                'communication': 2.0, 'LayerChoice': 0., 'LearnableAlpha': 3.0}
     if ops is None:
         ops = ['ReLU', 'MaxPool', 'LearnableAlpha']
     summary = model_summary(model, input_size)
     non_ops = _get_module_with_type(model, [LearnableAlpha], [])
     relu_count = []
     for op in non_ops:
-        boolean_list = op.weight.data > 1e-2
-        relu_count.append((boolean_list == 1).sum())
+        boolean_list = op.alphas.data > 1e-2
+        relu_count.append((boolean_list == 1).sum().item())
+    # print(summary)
     total, linear = 0.0, 0.0
     stages = []
+    idx_alpha = 0 
     for layer in summary:
         nonlinear_flag = False
-
+        key = layer.split('-')[0]
+        if not key in hardware.keys():
+            continue
         for op in ops:
             if layer.find(op) != -1:
                 nonlinear_flag = True
+                # print('hit')
                 break
         if nonlinear_flag and linear > 0:
             portion = 1
-            if op == 'LearnableAlpha':
-                portion = relu_count[0] / reduce(lambda x, y: x * y, summary[layer]["output_shape"])
+            if key == 'LearnableAlpha':
+                portion = relu_count[idx_alpha] / abs(reduce(lambda x, y: x * y, summary[layer]["output_shape"]))
+                idx_alpha += 1
             total += max(
-                (hardware['communication'] + hardware['nonlinear']) * portion * size2memory(
+                (hardware['communication'] + hardware[key]) * portion * size2memory(
                     summary[layer]["output_shape"]),
                 linear)
             stages.append(linear)
-            stages.append((hardware['communication'] + hardware['nonlinear']) * portion *
+            stages.append((hardware['communication'] + hardware[key]) * portion *
                           size2memory(summary[layer]["output_shape"]))
             linear = 0.0
         else:
-            linear += hardware['linear'] * size2memory(summary[layer]["output_shape"])
+            linear += hardware[key] * size2memory(summary[layer]["output_shape"])
     total += linear
     if linear > 0.0:
         stages.append(linear)
-    return 1000 / total, stages
+    return total, sum(stages)
 
 
 if __name__ == '__main__':
@@ -90,15 +96,32 @@ if __name__ == '__main__':
                         choices=['add#linear', 'mul#log', 'raw'])
     parser.add_argument("--exported_arch_path", default='', type=str)
     parser.add_argument("--checkpoint_path", default='./checkpoints/resnet18/search_net.pt', type=str)
-    parser.add_argument("--input_size", default=(1, 3, 224, 224), type=tuple)
+    parser.add_argument("--input_size", default=(1, 3, 224, 224), type=str)
     parser.add_argument('--stride', type=int, default=1, help='conv1 stride')
     args = parser.parse_args()
 
+    # ours
+    from models.supermodel import supermodel16
+    model = supermodel16()
+    hardware = {'ReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 3.0, 'BatchNorm2d': 0.05, 'Linear': 0.4, 'MaxPool2d': 3.0, 
+                'communication': 2.0, 'LayerChoice': 0., 'LearnableAlpha': 3.0}
+    print('----imagenet-----')
+    print(get_relu_count(model, (3, 224, 224)))
+    print(predict_latency(model, hardware, (3, 224, 224)))
+    print(predict_throughput(model, hardware, (3, 224, 224)))
+    # print('----cifar-100-----')
+    # print(get_relu_count(model, (3, 32, 32)))
+    # print(predict_latency(model, hardware, (3, 32, 32)))
+    # print(predict_throughput(model, hardware, (3, 32, 32)))
+    sys.exit(0)
+    # SNL
     model = resnet18_in(num_classes=100, args=args)
+    print(args.checkpoint_path)
     checkpoint = torch.load(args.checkpoint_path, map_location='cpu')
     model.load_state_dict(checkpoint['state_dict'])
-    print(get_relu_count(model, (3, 32, 32), ops=['Alpha']))
-    # get_snl_prediction(model=model, input_size=args.input_size[1:])
+    # print(get_relu_count(model, (3, 32, 32), ops=['Alpha']))
+    # print(eval(args.input_size))
+    print(get_snl_prediction(model=model, input_size=eval(args.input_size)[1:]))
     # old
     exit(0)
     base_path = '/home/lifabing/projects/nonlinearNAS/checkpoints/oneshot/'
