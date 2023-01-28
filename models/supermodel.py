@@ -8,6 +8,19 @@ from models.ops import OPS, DropPath_
 from nni.nas import model_wrapper
 
 
+class Swish(nn.Module):
+	def __init__(self,inplace=True):
+		super(Swish,self).__init__()
+		self.inplace = inplace
+
+	def forward(self,x):
+		if self.inplace:
+			x.mul_(torch.sigmoid(x))
+			return x
+		else:
+			return x*torch.sigmoid(x)	
+
+
 class _SampleLayer(nn.Module):
     SAMPLE_OPS = [
         'skip_connect',
@@ -67,7 +80,7 @@ class SampleBlock(nn.ModuleDict):
             self.add_module('samplelayer%d' % (i + 1), layer)
         # block = _SampleLayer(inplanes*2)
         # self.add_module('samplelayer', nn.Repeat(block, tuple([i+1 for i in range(num_layers)])))
-        self.add_module('relu', nn.ReLU(inplace=True))
+        self.add_module('relu', Swish(inplace=True))
 
     def forward(self, init_features: Tensor) -> Tensor:
         features = init_features
@@ -99,7 +112,7 @@ class AggregateBlock(nn.Module):
             compensation = 2 ** (idx)
         self.nonlinear = nn.Sequential(
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.ReLU(inplace=True)
+            Swish(inplace=True)
         )
         
 
@@ -135,7 +148,7 @@ class TransitionBlock(nn.Module):
             nn.Conv2d(inplanes, inplanes, 1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(inplanes),
             nn.MaxPool2d(kernel_size=2, stride=2), 
-            nn.ReLU(),
+            Swish(),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -162,7 +175,7 @@ class Supermodel(nn.Module):
                 ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=init_stride,
                                     padding=3, bias=False)),
                 ('norm0', nn.BatchNorm2d(num_init_features)),
-                ('relu0', nn.ReLU()),
+                ('relu0', Swish()),
                 ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
             ]))
         else:
@@ -171,7 +184,7 @@ class Supermodel(nn.Module):
             ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=init_stride,
                                 padding=1, bias=False)),
             ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.ReLU()),
+            ('relu0', Swish()),
         ]))
 
         self.samples = nn.ModuleList()
@@ -221,7 +234,7 @@ def supermodel16(num_classes: int = 1000, pretrained: bool = False):
     return Supermodel(block_config=(2, 4), num_classes=num_classes)
 
 def cifarsupermodel16(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=(2, 2), num_classes=num_classes)
+    return Supermodel(dataset='cifar', block_config=(2, 4), num_classes=num_classes)
 
 def cifarsupermodel22(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(4, 6, 8, 4), num_classes=num_classes)
