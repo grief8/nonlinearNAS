@@ -210,14 +210,17 @@ def predict_latency(model, hardware, input_size, batch_size=-1, device="cuda", o
     total = 0.0
     for layer in summary:
         nonlinear_flag = False
+        key = layer.split('-')[0]
+        if not key in hardware.keys():
+            continue
         for op in ops:
             if layer.find(op) != -1:
                 nonlinear_flag = True
                 break
         if nonlinear_flag:
-            total += (hardware['communication'] + hardware['nonlinear']) * size2memory(summary[layer]["output_shape"])
+            total += (hardware['communication'] + hardware[key]) * size2memory(summary[layer]["output_shape"])
         else:
-            total += hardware['linear'] * size2memory(summary[layer]["output_shape"])
+            total += hardware[key] * size2memory(summary[layer]["output_shape"])
     return total
 
 
@@ -237,24 +240,27 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
     stages = []
     for layer in summary:
         nonlinear_flag = False
+        key = layer.split('-')[0]
+        if not key in hardware.keys():
+            continue
         for op in ops:
             if layer.find(op) != -1:
                 nonlinear_flag = True
                 break
         if nonlinear_flag and linear > 0:
             total += max(
-                (hardware['communication'] + hardware['nonlinear']) * size2memory(summary[layer]["output_shape"]),
+                (hardware['communication'] + hardware[key]) * size2memory(summary[layer]["output_shape"]),
                 linear)
             stages.append(linear)
-            stages.append((hardware['communication'] + hardware['nonlinear']) *
+            stages.append((hardware['communication'] + hardware[key]) *
                           size2memory(summary[layer]["output_shape"]))
             linear = 0.0
         else:
-            linear += hardware['linear'] * size2memory(summary[layer]["output_shape"])
+            linear += hardware[key] * size2memory(summary[layer]["output_shape"])
     total += linear
     if linear > 0.0:
         stages.append(linear)
-    return 1000 / total, stages
+    return total, stages
 
 
 def get_relu_count(model, input_size, batch_size=-1, device="cuda", ops=None):
