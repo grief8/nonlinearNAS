@@ -52,7 +52,7 @@ class Retrain:
             model.load_state_dict(st)
         # knowledge distillation
         self.teacher = teacher
-        self.temp = 7
+        self.temp = 4
         self.alpha = 0.3
         self.soft_loss = nn.KLDivLoss(reduction='batchmean')
 

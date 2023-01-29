@@ -165,7 +165,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
                  arc_learning_rate=1.0E-3,
                  grad_reg_loss_type=None, grad_reg_loss_params=None,
                  applied_hardware=None, dummy_input=(1, 3, 224, 224),
-                 checkpoint_path=None, strategy='latency'):
+                 checkpoint_path=None, strategy='latency',
+                 teacher=None):
         self.model = model
         self.loss = loss
         self.metrics = metrics
@@ -180,9 +181,17 @@ class ProxylessTrainer(BaseOneShotTrainer):
 
         self.checkpoint_path = checkpoint_path
 
+        # knowledge distillation
+        self.teacher = torch.nn.DataParallel(teacher)
+        self.teacher.to(self.device)
+        self.teacher.eval()
+        self.temp = 4
+        self.alpha = 0.3
+        self.soft_loss = nn.KLDivLoss(reduction='batchmean')
+
         # latency predictor
         if not applied_hardware:
-            applied_hardware = {'PReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
+            applied_hardware = {'Hardswish': 3.0, 'ReLU': 3.0, 'PReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
                                 'communication': 2.0, 'LayerChoice': 0.0}
         self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input,
                                                            target=strategy)
@@ -321,6 +330,17 @@ class ProxylessTrainer(BaseOneShotTrainer):
         ''' return logits and loss for weight parameter update '''
         logits = self.model(X)
         loss = self.loss(logits, y)
+        # teacher model
+        if self.teacher is not None:
+            with torch.no_grad():
+                teachers_preds = self.teacher(X)
+            # calculate soft_loss
+            distillation_loss = self.soft_loss(
+                F.log_softmax(logits / self.temp, dim=1),
+                F.softmax(teachers_preds / self.temp, dim=1)
+            ) * self.temp * self.temp
+            # add hard_loss and soft_loss
+            loss = loss + distillation_loss 
         return logits, loss
 
     def _export_latency(self):

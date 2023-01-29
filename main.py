@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("--data_path", default='/home/lifabing/data/imagenet/', type=str)
     parser.add_argument("--train_batch_size", default=48, type=int)
     parser.add_argument("--test_batch_size", default=1024, type=int)
-    parser.add_argument("--n_worker", default=32, type=int)
+    parser.add_argument("--n_worker", default=16, type=int)
     parser.add_argument("--resize_scale", default=0.08, type=float)
     parser.add_argument("--distort_color", default='normal', type=str, choices=['normal', 'strong', 'None'])
     # configurations for training mode
@@ -70,10 +70,10 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     if args.train_mode == 'retrain':
-        assert os.path.isfile(args.exported_arch_path), \
-            "exported_arch_path {} should be a file.".format(args.exported_arch_path)
-        with fixed_arch(args.exported_arch_path):
-            model = get_nas_network(args)
+        # assert os.path.isfile(args.exported_arch_path), \
+        #     "exported_arch_path {} should be a file.".format(args.exported_arch_path)
+        # with fixed_arch(args.exported_arch_path):
+        model = get_nas_network(args)
             # model = ShuffleNetV2OneShot()
             # model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
             #                         n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
@@ -161,6 +161,19 @@ if __name__ == "__main__":
     else:
         args.grad_reg_loss_params = None
 
+    if args.kd_teacher_path is None:
+        teacher = None
+    else:
+        if args.dataset == 'imagenet':
+            from models.volo import volo_d2
+            teacher = volo_d2()
+        elif args.dataset == 'cifar100':
+            from models.teacher import resnet152
+            teacher = resnet152()
+        else:
+            print('invalid dataset')
+            sys.exit(1)
+        teacher.load_state_dict(torch.load(args.kd_teacher_path))
     if args.train_mode == 'search':
         from nas.proxylessnas import ProxylessTrainer
         trainer = ProxylessTrainer(model,
@@ -177,7 +190,8 @@ if __name__ == "__main__":
                                    grad_reg_loss_params=grad_reg_loss_params, 
                                    applied_hardware=args.applied_hardware, dummy_input=(1,)+data_provider.data_shape,
                                    checkpoint_path=args.exported_arch_path,
-                                   strategy=args.strategy)
+                                   strategy=args.strategy,
+                                   teacher=teacher)
         trainer.fit()
         print('Final architecture:', trainer.export())
         json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
@@ -185,21 +199,7 @@ if __name__ == "__main__":
     elif args.train_mode == 'retrain':
         # this is retrain
         print('this is retrain')
-        if args.kd_teacher_path is None:
-            trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
-                              export_path=args.exported_arch_path.rstrip('.json') + '.pth')
-        else:
-            if args.dataset == 'imagenet':
-                from models.volo import volo_d2
-                teacher = volo_d2()
-            elif args.dataset == 'cifar100':
-                from models.teacher import resnet152
-                teacher = resnet152()
-            else:
-                print('invalid dataset')
-                sys.exit(1)
-            teacher.load_state_dict(torch.load(args.kd_teacher_path))
-            trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
-                              export_path=args.exported_arch_path.rstrip('.json') + '.pth',
-                              teacher=teacher)
+        trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
+                            export_path=args.exported_arch_path.rstrip('.json') + '.pth',
+                            teacher=teacher)
         trainer.run()

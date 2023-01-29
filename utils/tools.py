@@ -200,7 +200,8 @@ def predict_latency(model, hardware, input_size, batch_size=-1, device="cuda", o
     model: nn.Module
         the pytorch model for statistics
     hardware: dict
-        the config of hardware platform. e.g. {'nonlinear': 3.0, 'linear': 0.5, 'communication': 4.0}
+        the config of hardware platform. e.g. hardware = {'ReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 3.0, 'BatchNorm2d': 0.05, 'Linear': 0.4, 'MaxPool2d': 3.0, 
+                'communication': 2.0, 'LayerChoice': 0.0}
 
     return: latency (ms) per image
     """
@@ -229,7 +230,8 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
     model: nn.Module
         the pytorch model for statistics
     hardware: dict
-        the config of hardware platform. e.g. {'nonlinear': 3.0, 'linear': 0.5, 'communication': 4.0}
+        the config of hardware platform. e.g. hardware = {'ReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 3.0, 'BatchNorm2d': 0.05, 'Linear': 0.4, 'MaxPool2d': 3.0, 
+                'communication': 2.0, 'LayerChoice': 0.0}
 
     return: images per second
     """

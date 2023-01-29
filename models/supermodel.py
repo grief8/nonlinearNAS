@@ -8,6 +8,19 @@ from models.ops import OPS, DropPath_
 from nni.nas import model_wrapper
 
 
+class Swish(nn.Module):
+	def __init__(self,inplace=True):
+		super(Swish,self).__init__()
+		self.inplace = inplace
+
+	def forward(self,x):
+		if self.inplace:
+			x.mul_(torch.sigmoid(x))
+			return x
+		else:
+			return x*torch.sigmoid(x)	
+
+
 class _SampleLayer(nn.Module):
     SAMPLE_OPS = [
         'skip_connect',
@@ -27,21 +40,24 @@ class _SampleLayer(nn.Module):
 
     def __init__(
             self,
-            inplanes: int
+            inplanes: int,
+            label: str
     ) -> None:
         super(_SampleLayer, self).__init__()
         # extract feature from low dimension
         self.paths = nn.ModuleList([nn.Sequential(OPS[op](inplanes, 1, True), DropPath_() )  for op in self.SAMPLE_OPS])
-        # self.paths = nn.ModuleList([OPS[op](inplanes, 1, True) for op in self.SAMPLE_OPS])
-        # self.input_switch = nn.InputChoice(n_candidates=len(OPS), n_chosen=4, reduction='sum')        
+        # self.paths = nn.LayerChoice([OPS[op](inplanes, 1, True) for op in self.SAMPLE_OPS])
+        # self.input_switch = nn.InputChoice(n_candidates=len(self.SAMPLE_OPS), n_chosen=4, reduction='sum')
+        self.alpha = nn.Parameter(torch.randn(len(self.SAMPLE_OPS)) * 1E-3)
 
     def forward(self, x: Tensor) -> Tensor:
+        weights = F.softmax(self.alpha, dim=-1)
         out = None
         for idx, _ in enumerate(self.paths):
             if out is None:
-                out = self.paths[idx](x)
+                out = self.paths[idx](x) * weights[idx]
             else:
-                out = out + self.paths[idx](x)
+                out = out + self.paths[idx](x) * weights[idx]
         # out = []
         # for idx, _ in enumerate(self.paths):
         #     out.append(self.paths[idx](x))
@@ -63,11 +79,10 @@ class SampleBlock(nn.ModuleDict):
         self.add_module('upsamplelayer', layer)
         for i in range(num_layers):
             # FIXME: nn.InputChoice maybe needed
-            layer = _SampleLayer(inplanes*2)
+            layer = _SampleLayer(inplanes*2, 'sampleunit')
             self.add_module('samplelayer%d' % (i + 1), layer)
-        # block = _SampleLayer(inplanes*2)
-        # self.add_module('samplelayer', nn.Repeat(block, tuple([i+1 for i in range(num_layers)])))
-        self.add_module('relu', nn.ReLU(inplace=True))
+        # self.add_module('samplelayer', PathSamplingRepeat(_SampleLayer(inplanes*2, 'sampleunit'), nn.ValueChoice([i+1 for i in range(num_layers)], label='samplelayer')))
+        self.add_module('relu', nn.Hardswish(inplace=True))
 
     def forward(self, init_features: Tensor) -> Tensor:
         features = init_features
@@ -99,47 +114,20 @@ class AggregateBlock(nn.Module):
             compensation = 2 ** (idx)
         self.nonlinear = nn.Sequential(
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.ReLU(inplace=True)
+            nn.Hardswish(inplace=True)
         )
+        self.alpha = nn.Parameter(torch.randn(len(self.layers)) * 1E-3)
         
-
     def forward(self, x: List) -> Tensor:
+        weights = F.softmax(self.alpha, dim=-1)
         out = None
         for idx, _ in enumerate(self.layers):
             if out is None:
-                out = self.layers[idx](x[idx])
+                out = self.layers[idx](x[idx]) * weights[idx]
             else:
-                out = out + self.layers[idx](x[idx])
+                out = out + self.layers[idx](x[idx])  * weights[idx]
 
         out = self.nonlinear(out)
-        return out
-
-
-class TransitionBlock(nn.Module):
-    def __init__(
-            self,
-            inplanes: int
-    ) -> None:
-        super(TransitionBlock, self).__init__()
-        self.transition = nn.Sequential(
-            # nn.LayerChoice([
-            #     nn.Sequential(
-            #         nn.Conv2d(inplanes, inplanes, 1, stride=1, padding=0, bias=False),
-            #         nn.BatchNorm2d(inplanes)
-            #     ),
-            #     nn.Sequential(
-            #         nn.Conv2d(inplanes, inplanes, 3, stride=1, padding=1, bias=False),
-            #         nn.BatchNorm2d(inplanes)
-            #     ),
-            # ]),
-            nn.Conv2d(inplanes, inplanes, 1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(inplanes),
-            nn.MaxPool2d(kernel_size=2, stride=2), 
-            nn.ReLU(),
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        out = self.transition(x)
         return out
 
 
@@ -162,7 +150,7 @@ class Supermodel(nn.Module):
                 ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=init_stride,
                                     padding=3, bias=False)),
                 ('norm0', nn.BatchNorm2d(num_init_features)),
-                ('relu0', nn.ReLU()),
+                ('relu0', nn.Hardswish()),
                 ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
             ]))
         else:
@@ -171,7 +159,7 @@ class Supermodel(nn.Module):
             ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=init_stride,
                                 padding=1, bias=False)),
             ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.ReLU()),
+            ('relu0', nn.Hardswish()),
         ]))
 
         self.samples = nn.ModuleList()
@@ -221,7 +209,7 @@ def supermodel16(num_classes: int = 1000, pretrained: bool = False):
     return Supermodel(block_config=(2, 4), num_classes=num_classes)
 
 def cifarsupermodel16(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=(2, 2), num_classes=num_classes)
+    return Supermodel(dataset='cifar', block_config=(2, 2, 2, 2), num_classes=num_classes)
 
 def cifarsupermodel22(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(4, 6, 8, 4), num_classes=num_classes)
