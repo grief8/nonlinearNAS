@@ -267,7 +267,7 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
 
 def get_relu_count(model, input_size, batch_size=-1, device="cuda", ops=None):
     if ops is None:
-        ops = ['ReLU']
+        ops = ['ReLU', 'PReLU', 'Hardswish']
     summary = model_summary(model, input_size, batch_size, device)
     total = 0.0
     for layer in summary:
