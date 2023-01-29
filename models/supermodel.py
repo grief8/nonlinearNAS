@@ -45,22 +45,23 @@ class _SampleLayer(nn.Module):
     ) -> None:
         super(_SampleLayer, self).__init__()
         # extract feature from low dimension
-        # self.paths = nn.ModuleList([nn.Sequential(OPS[op](inplanes, 1, True), DropPath_() )  for op in self.SAMPLE_OPS])
-        self.paths = nn.LayerChoice([OPS[op](inplanes, 1, True) for op in self.SAMPLE_OPS])
+        self.paths = nn.ModuleList([nn.Sequential(OPS[op](inplanes, 1, True), DropPath_() )  for op in self.SAMPLE_OPS])
+        # self.paths = nn.LayerChoice([OPS[op](inplanes, 1, True) for op in self.SAMPLE_OPS])
         # self.input_switch = nn.InputChoice(n_candidates=len(self.SAMPLE_OPS), n_chosen=4, reduction='sum')
+        self.alpha = nn.Parameter(torch.randn(len(self.SAMPLE_OPS)) * 1E-3)
 
     def forward(self, x: Tensor) -> Tensor:
-        # out = None
-        # for idx, _ in enumerate(self.paths):
-        #     if out is None:
-        #         out = self.paths[idx](x)
-        #     else:
-        #         out = out + self.paths[idx](x)
+        weights = F.softmax(self.alpha, dim=-1)
+        out = None
+        for idx, _ in enumerate(self.paths):
+            if out is None:
+                out = self.paths[idx](x) * weights[idx]
+            else:
+                out = out + self.paths[idx](x) * weights[idx]
         # out = []
         # for idx, _ in enumerate(self.paths):
         #     out.append(self.paths[idx](x))
         # out = self.input_switch(out)
-        out = self.paths(x)
         return out
 
 
@@ -115,14 +116,16 @@ class AggregateBlock(nn.Module):
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Hardswish(inplace=True)
         )
+        self.alpha = nn.Parameter(torch.randn(len(self.layers)) * 1E-3)
         
     def forward(self, x: List) -> Tensor:
+        weights = F.softmax(self.alpha, dim=-1)
         out = None
         for idx, _ in enumerate(self.layers):
             if out is None:
-                out = self.layers[idx](x[idx])
+                out = self.layers[idx](x[idx]) * weights[idx]
             else:
-                out = out + self.layers[idx](x[idx])
+                out = out + self.layers[idx](x[idx])  * weights[idx]
 
         out = self.nonlinear(out)
         return out
