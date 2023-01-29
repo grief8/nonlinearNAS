@@ -185,7 +185,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.teacher = torch.nn.DataParallel(teacher)
         self.teacher.to(self.device)
         self.teacher.eval()
-        self.temp = 7
+        self.temp = 4
         self.alpha = 0.3
         self.soft_loss = nn.KLDivLoss(reduction='batchmean')
 
