@@ -255,3 +255,11 @@ class BinaryPReLu(nn.Module):
         zeros = torch.zeros_like(weight)
         self.relu.weight = torch.where(weight <= 0.5, zeros, ones)
         return self.relu(x)
+
+
+def reproduce_model(model, threshold=0.2):
+    for name, param in model.named_parameters():
+        if 'alpha' in name:
+            alpha = torch.where(param.data > threshold, torch.ones_like(param.data), torch.zeros_like(param.data))
+            param.data.copy_(alpha)
+            param.requires_grad = False
