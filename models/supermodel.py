@@ -9,16 +9,16 @@ from nni.nas import model_wrapper
 
 
 class Swish(nn.Module):
-	def __init__(self,inplace=True):
-		super(Swish,self).__init__()
-		self.inplace = inplace
+    def __init__(self, inplace=True):
+        super(Swish, self).__init__()
+        self.inplace = inplace
 
-	def forward(self,x):
-		if self.inplace:
-			x.mul_(torch.sigmoid(x))
-			return x
-		else:
-			return x*torch.sigmoid(x)	
+    def forward(self, x):
+        if self.inplace:
+            x.mul_(torch.sigmoid(x))
+            return x
+        else:
+            return x * torch.sigmoid(x)
 
 
 class _SampleLayer(nn.Module):
@@ -45,13 +45,14 @@ class _SampleLayer(nn.Module):
     ) -> None:
         super(_SampleLayer, self).__init__()
         # extract feature from low dimension
-        self.paths = nn.ModuleList([nn.Sequential(OPS[op](inplanes, 1, True), DropPath_() )  for op in self.SAMPLE_OPS])
+        self.paths = nn.ModuleList([nn.Sequential(OPS[op](inplanes, 1, True), DropPath_()) for op in self.SAMPLE_OPS])
         # self.paths = nn.LayerChoice([OPS[op](inplanes, 1, True) for op in self.SAMPLE_OPS])
         # self.input_switch = nn.InputChoice(n_candidates=len(self.SAMPLE_OPS), n_chosen=4, reduction='sum')
-        self.alpha = nn.Parameter(torch.randn(len(self.SAMPLE_OPS)) * 1E-3)
+        self.alpha = nn.Parameter(torch.rand(len(self.SAMPLE_OPS)) * 1E-3)
 
     def forward(self, x: Tensor) -> Tensor:
-        weights = F.softmax(self.alpha, dim=-1)
+        # weights = F.softmax(self.alpha, dim=-1)
+        weights = self.alpha
         out = None
         for idx, _ in enumerate(self.paths):
             if out is None:
@@ -67,19 +68,19 @@ class _SampleLayer(nn.Module):
 
 class SampleBlock(nn.ModuleDict):
     def __init__(
-        self,
-        num_layers: int,
-        inplanes: int,
+            self,
+            num_layers: int,
+            inplanes: int,
     ) -> None:
         super(SampleBlock, self).__init__()
         layer = nn.Sequential(
-                nn.Conv2d(inplanes, inplanes*2, kernel_size=1, stride=1),
-                nn.BatchNorm2d(inplanes*2),
-            )
+            nn.Conv2d(inplanes, inplanes * 2, kernel_size=1, stride=1),
+            nn.BatchNorm2d(inplanes * 2),
+        )
         self.add_module('upsamplelayer', layer)
         for i in range(num_layers):
             # FIXME: nn.InputChoice maybe needed
-            layer = _SampleLayer(inplanes*2, 'sampleunit')
+            layer = _SampleLayer(inplanes * 2, 'sampleunit')
             self.add_module('samplelayer%d' % (i + 1), layer)
         # self.add_module('samplelayer', PathSamplingRepeat(_SampleLayer(inplanes*2, 'sampleunit'), nn.ValueChoice([i+1 for i in range(num_layers)], label='samplelayer')))
         self.add_module('relu', nn.Hardswish(inplace=True))
@@ -116,16 +117,17 @@ class AggregateBlock(nn.Module):
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Hardswish(inplace=True)
         )
-        self.alpha = nn.Parameter(torch.randn(len(self.layers)) * 1E-3)
-        
+        self.alpha = nn.Parameter(torch.rand(len(self.layers)) * 1E-3)
+
     def forward(self, x: List) -> Tensor:
-        weights = F.softmax(self.alpha, dim=-1)
+        # weights = F.softmax(self.alpha, dim=-1)
+        weights = self.alpha
         out = None
         for idx, _ in enumerate(self.layers):
             if out is None:
                 out = self.layers[idx](x[idx]) * weights[idx]
             else:
-                out = out + self.layers[idx](x[idx])  * weights[idx]
+                out = out + self.layers[idx](x[idx]) * weights[idx]
 
         out = self.nonlinear(out)
         return out
@@ -134,18 +136,18 @@ class AggregateBlock(nn.Module):
 # @model_wrapper
 class Supermodel(nn.Module):
     def __init__(
-        self,
-        dataset: str = 'imagenet',
-        num_init_features: int = 32,
-        block_config: Tuple[int, int, int, int] = (2, 2, 2, 2),
-        num_classes: int = 1000
+            self,
+            dataset: str = 'imagenet',
+            num_init_features: int = 32,
+            block_config: Tuple[int, int, int, int] = (2, 2, 2, 2),
+            num_classes: int = 1000
     ) -> None:
 
         super(Supermodel, self).__init__()
 
         # First convolution
         if dataset == 'imagenet':
-            init_stride = 2* 2** (4 - len(block_config))
+            init_stride = 2 * 2 ** (4 - len(block_config))
             self.features = nn.Sequential(OrderedDict([
                 ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=init_stride,
                                     padding=3, bias=False)),
@@ -154,13 +156,13 @@ class Supermodel(nn.Module):
                 ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
             ]))
         else:
-            init_stride = 2** (4 - len(block_config))
+            init_stride = 2 ** (4 - len(block_config))
             self.features = nn.Sequential(OrderedDict([
-            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=init_stride,
-                                padding=1, bias=False)),
-            ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.Hardswish()),
-        ]))
+                ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=init_stride,
+                                    padding=1, bias=False)),
+                ('norm0', nn.BatchNorm2d(num_init_features)),
+                ('relu0', nn.Hardswish()),
+            ]))
 
         self.samples = nn.ModuleList()
         self.aggeregate = nn.ModuleList()
@@ -173,7 +175,7 @@ class Supermodel(nn.Module):
                 inplanes=num_features
             )
             self.samples.append(block)
-            num_features = num_features * 2 
+            num_features = num_features * 2
             if i != len(block_config) - 1:
                 channels.append(num_features)
                 trans = AggregateBlock(channels, num_features)
@@ -198,7 +200,7 @@ class Supermodel(nn.Module):
             features.append(self.samples[idx](features[-1]))
             features[-1] = self.aggeregate[idx](features)
         out = self.samples[-1](features[-1])
-        
+
         out = F.adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
         out = self.classifier(out)
@@ -208,11 +210,14 @@ class Supermodel(nn.Module):
 def supermodel16(num_classes: int = 1000, pretrained: bool = False):
     return Supermodel(block_config=(2, 4), num_classes=num_classes)
 
+
 def cifarsupermodel16(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(2, 2, 2, 2), num_classes=num_classes)
 
+
 def cifarsupermodel22(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(4, 6, 8, 4), num_classes=num_classes)
+
 
 def cifarsupermodel26(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(4, 6, 8, 8), num_classes=num_classes)
