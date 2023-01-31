@@ -14,7 +14,7 @@ import utils.datasets as datasets
 from models.model import SearchMobileNet
 from models.shufflenet import ShuffleNetV2OneShot
 from nas.estimator import _get_module_with_type, NonlinearLatencyEstimator
-from utils.putils import LabelSmoothingLoss, accuracy, get_parameters, get_nas_network
+from utils.putils import LabelSmoothingLoss, accuracy, get_parameters, get_nas_network, reproduce_model
 from nas.retrain import Retrain
 
 logger = logging.getLogger('nni_proxylessnas')
@@ -74,6 +74,8 @@ if __name__ == "__main__":
         #     "exported_arch_path {} should be a file.".format(args.exported_arch_path)
         # with fixed_arch(args.exported_arch_path):
         model = get_nas_network(args)
+        model.load_state_dict(torch.load(args.checkpoint_path))
+        reproduce_model(model, threshold=0.3)
             # model = ShuffleNetV2OneShot()
             # model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
             #                         n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
@@ -175,27 +177,31 @@ if __name__ == "__main__":
             sys.exit(1)
         teacher.load_state_dict(torch.load(args.kd_teacher_path))
     if args.train_mode == 'search':
-        from nas.proxylessnas import ProxylessTrainer
-        trainer = ProxylessTrainer(model,
-                                   loss=LabelSmoothingLoss(),
-                                   dataset=data_provider.train.dataset,
-                                   optimizer=optimizer,
-                                   metrics=lambda output, target: accuracy(output, target, topk=(1, 5,)),
-                                   num_epochs=args.epochs,
-                                   batch_size=args.train_batch_size,
-                                   arc_learning_rate=1e-5,
-                                   warmup_epochs=60,
-                                   log_frequency=args.log_frequency,
-                                   grad_reg_loss_type=args.grad_reg_loss_type, 
-                                   grad_reg_loss_params=grad_reg_loss_params, 
-                                   applied_hardware=args.applied_hardware, dummy_input=(1,)+data_provider.data_shape,
-                                   checkpoint_path=args.exported_arch_path,
-                                   strategy=args.strategy,
-                                   teacher=teacher)
-        trainer.fit()
-        print('Final architecture:', trainer.export())
-        json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
-        json.dump(trainer.export_prob(), open(args.exported_arch_path + '.prob', 'w'))
+        trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
+                            export_path=args.checkpoint_path,
+                            teacher=teacher)
+        trainer.run()
+        # from nas.proxylessnas import ProxylessTrainer
+        # trainer = ProxylessTrainer(model,
+        #                            loss=LabelSmoothingLoss(),
+        #                            dataset=data_provider.train.dataset,
+        #                            optimizer=optimizer,
+        #                            metrics=lambda output, target: accuracy(output, target, topk=(1, 5,)),
+        #                            num_epochs=args.epochs,
+        #                            batch_size=args.train_batch_size,
+        #                            arc_learning_rate=1e-5,
+        #                            warmup_epochs=60,
+        #                            log_frequency=args.log_frequency,
+        #                            grad_reg_loss_type=args.grad_reg_loss_type, 
+        #                            grad_reg_loss_params=grad_reg_loss_params, 
+        #                            applied_hardware=args.applied_hardware, dummy_input=(1,)+data_provider.data_shape,
+        #                            checkpoint_path=args.exported_arch_path,
+        #                            strategy=args.strategy,
+        #                            teacher=teacher)
+        # trainer.fit()
+        # print('Final architecture:', trainer.export())
+        # json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
+        # json.dump(trainer.export_prob(), open(args.exported_arch_path + '.prob', 'w'))
     elif args.train_mode == 'retrain':
         # this is retrain
         print('this is retrain')

@@ -40,6 +40,7 @@ function run_proxylessnas() {
   lossType=$2
   wid=$3
   strategy=$5
+  batch=$6
   echo start "${model}" "${lossType}" "$wid" "${strategy}"
   dir=./checkpoints/oneshot/"${model}"/"${strategy}"/"${lossType}"
   #  search
@@ -47,12 +48,12 @@ function run_proxylessnas() {
   python main.py  \
   --net "${model}" \
   --dataset cifar100 \
-  --data_path /home/lifabing/data/ \
+  --data_path ~/data/ \
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
   --pretrained \
-  --epochs 200 \
-  --train_batch_size 256 \
+  --epochs 50 \
+  --train_batch_size "${batch}" \
   --checkpoint_path "${dir}"/arch_path.pt \
   --exported_arch_path "${dir}"/checkpoint2.json \
   --train_mode "$4" \
@@ -65,4 +66,4 @@ function run_proxylessnas() {
 #done;
 #run_proxylessnas "$1" add#linear 0  "$2" "$3" &
 #run_proxylessnas "$1" mul#log 0 "$2" "$3"
-run_proxylessnas "$1" add#linear 0 "$2" "$3"
+run_proxylessnas "$1" add#linear 0 "$2" "$3" "$4"
