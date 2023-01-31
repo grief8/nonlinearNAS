@@ -50,7 +50,7 @@ class _SampleLayer(nn.Module):
         # self.input_switch = nn.InputChoice(n_candidates=len(self.SAMPLE_OPS), n_chosen=4, reduction='sum')
         self.alpha = nn.Parameter(torch.rand(len(self.SAMPLE_OPS)) * 1E-3)
         self.nonlinear = nn.ModuleList([nn.Identity(), nn.Hardswish()])
-        self.alpha2 = nn.Parameter(torch.rand(2) * 1E-3)
+        self.beta = nn.Parameter(torch.rand(2) * 1E-3)
 
     def forward(self, x: Tensor) -> Tensor:
         # weights = F.softmax(self.alpha, dim=-1)
@@ -61,7 +61,7 @@ class _SampleLayer(nn.Module):
                 out = self.paths[idx](x) * weights[idx]
             else:
                 out = out + self.paths[idx](x) * weights[idx]
-        out = self.nonlinear[0](out) * self.alpha2[0] + self.nonlinear[1](out) * self.alpha2[1] 
+        out = self.nonlinear[0](out) * self.beta[0] + self.nonlinear[1](out) * self.beta[1] 
         # out = []
         # for idx, _ in enumerate(self.paths):
         #     out.append(self.paths[idx](x))
