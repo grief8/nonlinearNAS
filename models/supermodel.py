@@ -49,8 +49,9 @@ class _SampleLayer(nn.Module):
         # self.paths = nn.LayerChoice([OPS[op](inplanes, 1, True) for op in self.SAMPLE_OPS])
         # self.input_switch = nn.InputChoice(n_candidates=len(self.SAMPLE_OPS), n_chosen=4, reduction='sum')
         self.alpha = nn.Parameter(torch.rand(len(self.SAMPLE_OPS)) * 1E-3)
-        self.nonlinear = nn.ModuleList([nn.Identity(), nn.Hardswish()])
-        self.beta = nn.Parameter(torch.rand(2))
+        self.nonlinear = nn.LayerChoice([nn.Identity(), nn.Hardswish()])
+        # self.nonlinear = nn.ModuleList([nn.Identity(), nn.Hardswish()])
+        # self.beta = nn.Parameter(torch.rand(2))
 
     def forward(self, x: Tensor) -> Tensor:
         # weights = F.softmax(self.alpha, dim=-1)
@@ -61,7 +62,8 @@ class _SampleLayer(nn.Module):
                 out = self.paths[idx](x) * weights[idx]
             else:
                 out = out + self.paths[idx](x) * weights[idx]
-        out = self.nonlinear[0](out) * self.beta[0] + self.nonlinear[1](out) * self.beta[1] 
+        out = self.nonlinear(out)    
+        # out = self.nonlinear[0](out) * self.beta[0] + self.nonlinear[1](out) * self.beta[1] 
         # out = []
         # for idx, _ in enumerate(self.paths):
         #     out.append(self.paths[idx](x))
@@ -150,21 +152,17 @@ class Supermodel(nn.Module):
 
         # First convolution
         if dataset == 'imagenet':
-            init_stride = 2 * 2 ** (4 - len(block_config))
+            init_stride = 4
             self.features = nn.Sequential(OrderedDict([
                 ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=init_stride,
                                     padding=3, bias=False)),
                 ('norm0', nn.BatchNorm2d(num_init_features)),
-                ('relu0', nn.Hardswish()),
-                ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
             ]))
         else:
-            init_stride = 2 ** (4 - len(block_config))
             self.features = nn.Sequential(OrderedDict([
-                ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=init_stride,
+                ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
                                     padding=1, bias=False)),
                 ('norm0', nn.BatchNorm2d(num_init_features)),
-                ('relu0', nn.Hardswish()),
             ]))
 
         self.samples = nn.ModuleList()
