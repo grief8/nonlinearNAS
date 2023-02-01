@@ -265,3 +265,8 @@ def reproduce_model(model, threshold=0.5):
             alpha = torch.where(param.data > threshold, torch.ones_like(param.data), torch.zeros_like(param.data))
             param.data.copy_(alpha)
             param.requires_grad = False
+        elif 'beta' in name:
+            values, idx = torch.max(param.data, dim=0)
+            param.data[idx] = 1
+            param.data[1-idx] = 0
+            param.requires_grad = False

@@ -50,7 +50,7 @@ class _SampleLayer(nn.Module):
         # self.input_switch = nn.InputChoice(n_candidates=len(self.SAMPLE_OPS), n_chosen=4, reduction='sum')
         self.alpha = nn.Parameter(torch.rand(len(self.SAMPLE_OPS)) * 1E-3)
         self.nonlinear = nn.ModuleList([nn.Identity(), nn.Hardswish()])
-        self.beta = nn.Parameter(torch.rand(2) * 1E-3)
+        self.beta = nn.Parameter(torch.rand(2))
 
     def forward(self, x: Tensor) -> Tensor:
         # weights = F.softmax(self.alpha, dim=-1)
@@ -219,8 +219,8 @@ def cifarsupermodel16(num_classes: int = 100, pretrained: bool = False):
 
 
 def cifarsupermodel22(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=(4, 6, 8, 4), num_classes=num_classes)
+    return Supermodel(dataset='cifar', block_config=(2, 2, 2), num_classes=num_classes)
 
 
 def cifarsupermodel26(num_classes: int = 100, pretrained: bool = False):
-    return Supermodel(dataset='cifar', block_config=(4, 6, 8, 8), num_classes=num_classes)
+    return Supermodel(dataset='cifar', block_config=(2, 2), num_classes=num_classes)
