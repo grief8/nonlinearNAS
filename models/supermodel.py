@@ -88,7 +88,7 @@ class SampleBlock(nn.ModuleDict):
             layer = _SampleLayer(inplanes * 2, 'sampleunit')
             self.add_module('samplelayer%d' % (i + 1), layer)
         # self.add_module('samplelayer', PathSamplingRepeat(_SampleLayer(inplanes*2, 'sampleunit'), nn.ValueChoice([i+1 for i in range(num_layers)], label='samplelayer')))
-        self.add_module('relu', nn.Hardswish(inplace=True))
+        # self.add_module('relu', nn.Hardswish(inplace=True))
 
     def forward(self, init_features: Tensor) -> Tensor:
         features = init_features
