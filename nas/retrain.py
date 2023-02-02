@@ -123,7 +123,7 @@ class Retrain:
                 print(batch_log)
         return top1, top5
 
-    def train(self, validation_frequency=1):
+    def train(self, validation_frequency=5):
         best_acc = 0
         nBatch = len(self.train_loader)
 
@@ -176,6 +176,7 @@ class Retrain:
             else:
                 is_best = False
             if is_best:
+                print('Best accuracy {}'.format(best_acc))
                 torch.save(self.model.module.state_dict(), self.export_path)
 
     def validate(self, is_test=True):
