@@ -239,7 +239,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
 
     def _init_logger(self):
         rq = time.strftime('%Y%m%d%H%M', time.localtime(time.time()))
-        log_path = os.path.dirname('/home/lifabing/projects/nonlinearNAS/logs/')
+        log_path = os.path.dirname('~/projects/nonlinearNAS/logs/')
         log_path = os.path.join(log_path, self.reg_loss_type)
         if not os.path.exists(log_path):
             os.makedirs(log_path)
