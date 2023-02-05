@@ -222,3 +222,11 @@ def cifarsupermodel22(num_classes: int = 100, pretrained: bool = False):
 
 def cifarsupermodel26(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(2, 2), num_classes=num_classes)
+
+
+def cifarsupermodel50(num_classes: int = 100, pretrained: bool = False):
+    return Supermodel(dataset='cifar', block_config=(3, 4, 6, 3), num_classes=num_classes)
+
+
+def cifarsupermodel101(num_classes: int = 100, pretrained: bool = False):
+    return Supermodel(dataset='cifar', block_config=(3, 4, 23, 3), num_classes=num_classes)
