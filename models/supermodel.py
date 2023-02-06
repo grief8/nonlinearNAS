@@ -212,6 +212,14 @@ def supermodel16(num_classes: int = 1000, pretrained: bool = False):
     return Supermodel(block_config=(2, 4), num_classes=num_classes)
 
 
+def supermodel8(num_classes: int = 1000, pretrained: bool = False):
+    return Supermodel(block_config=(2, 2, 2), num_classes=num_classes)
+
+
+def supermodel50(num_classes: int = 1000, pretrained: bool = False):
+    return Supermodel(block_config=(3, 4, 6, 3), num_classes=num_classes)
+
+
 def cifarsupermodel16(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(2, 2, 2, 2), num_classes=num_classes)
 

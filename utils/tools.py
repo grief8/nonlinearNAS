@@ -4,7 +4,8 @@ import torch.nn as nn
 from functools import reduce
 from collections import OrderedDict
 
-from nni.retiarii import fixed_arch
+from nni.retiarii.fixed import fixed_arch
+from utils.config import nonlinear_ops
 
 
 def size2memory(size):
@@ -171,13 +172,13 @@ def model_summary(model, input_size, batch_size=-1, device="cuda"):
 
 def stat_output_data(model, input_size, batch_size=-1, device="cuda", ops=None):
     if ops is None:
-        ops = ['ReLU', 'MaxPool']
+        ops = nonlinear_ops
     return sift(model_summary(model, input_size, batch_size, device), ops)
 
 
 def get_clean_summary(model, input_size, batch_size=-1, device="cuda", ops=None):
     if ops is None:
-        ops = ['ReLU', 'MaxPool']
+        ops = nonlinear_ops
     summary = model_summary(model, input_size, batch_size, device)
     new_sum = []
     for layer in summary:
@@ -206,7 +207,7 @@ def predict_latency(model, hardware, input_size, batch_size=-1, device="cuda", o
     return: latency (ms) per image
     """
     if ops is None:
-        ops = ['ReLU', 'MaxPool']
+        ops = nonlinear_ops
     summary = model_summary(model, input_size, batch_size, device)
     total = 0.0
     for layer in summary:
@@ -236,7 +237,7 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
     return: images per second
     """
     if ops is None:
-        ops = ['ReLU', 'MaxPool']
+        ops = nonlinear_ops
     summary = model_summary(model, input_size, batch_size, device)
     total, linear = 0.0, 0.0
     stages = []
