@@ -6,6 +6,13 @@ do
   do
     for lt in 'add#linear' 'mul#log';
     do
+      echo baker.py \
+      --net "${md}" \
+      --dataset "$1" \
+      --grad_reg_loss_type "${lt}" \
+      --strategy "${st}" \
+      --choice "v0.7"
+      
       python baker.py \
       --net "${md}" \
       --dataset "$1" \

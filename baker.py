@@ -10,21 +10,22 @@ from utils.config import hardware
 
 
 def analyze_arch(args, hardware):
-    from nni.retiarii import fixed_arch
+    from nni.retiarii.fixed import fixed_arch
     with fixed_arch(args.exported_arch_path, verbose=False):
         model = get_nas_network(args)
         print('relu count: ', get_relu_count(model, args.input_size[1:], device='cpu'))
         print('latency: ', predict_latency(model, hardware, args.input_size[1:], device='cpu'))
         throughput, stages = predict_throughput(model, hardware, args.input_size[1:], device='cpu')
         # stages.remove(0.0)
-        print('throughput: ',throughput)
+        print('throughput: ', throughput)
+        print('stages: ', stages)
         print(max(stages), min(stages), sum(stages) / len(stages))
         print('-----------')
 
 
 def analyze_relu_count(args, supermodel=False):
     if not supermodel:
-        from nni.retiarii import fixed_arch
+        from nni.retiarii.fixed import fixed_arch
         with fixed_arch(args.exported_arch_path, verbose=False):
             model = get_nas_network(args)
             print(get_relu_count(model, args.input_size[1:], device='cpu'))
@@ -129,7 +130,7 @@ if __name__ == '__main__':
         print(get_snl_prediction(model=model, input_size=eval(args.input_size)[1:]))
         exit(0)
     elif args.choice == 'v0.7':
-        base_path = '~/projects/nonlinearNAS/checkpoints/oneshot/'
+        base_path = '/scorpio/home/lifabing/projects/nonlinearNAS/checkpoints/oneshot/'
         if args.dataset == 'cifar100':
             args.input_size = (1, 3, 32, 32)
             arch_path = base_path + '{}/{}/{}/checkpoint2.json'.format(args.net, args.strategy, args.grad_reg_loss_type)
