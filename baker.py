@@ -6,21 +6,20 @@ from utils.putils import generate_arch, get_nas_network
 from utils.tools import *
 from nas.proxylessnas import _get_module_with_type
 from exp.cifar_resnet import resnet18_in, LearnableAlpha
+from utils.config import hardware
 
 
 def analyze_arch(args, hardware):
     from nni.retiarii import fixed_arch
     with fixed_arch(args.exported_arch_path, verbose=False):
         model = get_nas_network(args)
-        # print('predict_latency: ', predict_latency(model, hardware, args.input_size[1:]))
-        print(predict_latency(model, hardware, args.input_size[1:], device='cpu'))
-        # print('predict_throughput: ', predict_throughput(model, hardware, args.input_size[1:]))
+        print('relu count: ', get_relu_count(model, args.input_size[1:], device='cpu'))
+        print('latency: ', predict_latency(model, hardware, args.input_size[1:], device='cpu'))
         throughput, stages = predict_throughput(model, hardware, args.input_size[1:], device='cpu')
         # stages.remove(0.0)
-        print(throughput)
+        print('throughput: ',throughput)
         print(max(stages), min(stages), sum(stages) / len(stages))
-        print()
-        # print(predict_throughput(model, hardware, args.input_size[1:]))
+        print('-----------')
 
 
 def analyze_relu_count(args, supermodel=False):
@@ -37,8 +36,8 @@ def analyze_relu_count(args, supermodel=False):
 
 
 def get_snl_prediction(model, input_size, ops=None):
-    hardware = {'ReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 3.0, 'BatchNorm2d': 0.05, 'Linear': 0.4, 'MaxPool2d': 3.0, 
-                'communication': 2.0, 'LayerChoice': 0., 'LearnableAlpha': 3.0}
+    # hardware = {'ReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 3.0, 'BatchNorm2d': 0.05, 'Linear': 0.4, 'MaxPool2d': 3.0, 
+    #             'communication': 2.0, 'LayerChoice': 0., 'LearnableAlpha': 3.0}
     if ops is None:
         ops = ['ReLU', 'MaxPool', 'LearnableAlpha']
     summary = model_summary(model, input_size)
@@ -86,6 +85,9 @@ if __name__ == '__main__':
     # model = ['mobilenet', 'resnet18', 'vgg16', 'resnet50']
     # strategy = ['latency', 'throughput']
     # lossType = ['add#linear', 'mul#log']
+    # hardware = {'ReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 3.0, 'BatchNorm2d': 0.05, 'Linear': 0.4, 'MaxPool2d': 3.0, 
+    #         'communication': 2.0, 'LayerChoice': 0., 'LearnableAlpha': 3.0}
+
     parser = ArgumentParser("analyzer")
     parser.add_argument('--net', default='vgg16', type=str, help='net type')
     parser.add_argument("--pretrained", default=False, action="store_true")
@@ -98,51 +100,72 @@ if __name__ == '__main__':
     parser.add_argument("--checkpoint_path", default='./checkpoints/resnet18/search_net.pt', type=str)
     parser.add_argument("--input_size", default=(1, 3, 224, 224), type=str)
     parser.add_argument('--stride', type=int, default=1, help='conv1 stride')
+    parser.add_argument("--choice", default='', type=str)
+
     args = parser.parse_args()
 
-    # ours
-    from models.supermodel import supermodel16
-    model = supermodel16()
-    hardware = {'ReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 3.0, 'BatchNorm2d': 0.05, 'Linear': 0.4, 'MaxPool2d': 3.0, 
-                'communication': 2.0, 'LayerChoice': 0., 'LearnableAlpha': 3.0}
-    print('----imagenet-----')
-    print(get_relu_count(model, (3, 224, 224)))
-    print(predict_latency(model, hardware, (3, 224, 224)))
-    print(predict_throughput(model, hardware, (3, 224, 224)))
-    # print('----cifar-100-----')
-    # print(get_relu_count(model, (3, 32, 32)))
-    # print(predict_latency(model, hardware, (3, 32, 32)))
-    # print(predict_throughput(model, hardware, (3, 32, 32)))
-    sys.exit(0)
-    # SNL
-    model = resnet18_in(num_classes=100, args=args)
-    print(args.checkpoint_path)
-    checkpoint = torch.load(args.checkpoint_path, map_location='cpu')
-    model.load_state_dict(checkpoint['state_dict'])
-    # print(get_relu_count(model, (3, 32, 32), ops=['Alpha']))
-    # print(eval(args.input_size))
-    print(get_snl_prediction(model=model, input_size=eval(args.input_size)[1:]))
-    # old
-    exit(0)
-    base_path = '/home/lifabing/projects/nonlinearNAS/checkpoints/oneshot/'
-    if args.dataset == 'cifar100':
-        args.input_size = (1, 3, 32, 32)
-        arch_path = base_path + '{}/{}/{}/checkpoint2.json'.format(args.net, args.strategy, args.grad_reg_loss_type)
-    else:
-        arch_path = base_path + '{}/{}/{}/checkpoint.json'.format(args.net, args.strategy, args.grad_reg_loss_type)
-    # if not os.path.exists(arch_path):
-    #     if not os.path.exists(arch_path+'.prob'):
-    #         sys.exit(0)
-    #     generate_arch(arch_path+'.prob')
-    #     arch_path += '.tmp'
-    # print(args.net, args.dataset, args.strategy, args.grad_reg_loss_type)
-    # args.exported_arch_path = arch_path
+    if args.choice == 'ours':
+        # ours
+        from models.supermodel import supermodel16
+        model = supermodel16()
 
-    # analyze_relu_count(args)
-    print(get_relu_count(get_nas_network(args), args.input_size[1:], device='cpu'))
-    # analyze_relu_count(args, supermodel=True)
-    # hardware = {'nonlinear': 3.0, 'linear': 0.5, 'communication': 4.0}
-    # try:
-    #     analyze_arch(args, hardware)
-    # except:
-    #     print('failed')
+        print('----imagenet-----')
+        print(get_relu_count(model, (3, 224, 224)))
+        print(predict_latency(model, hardware, (3, 224, 224)))
+        print(predict_throughput(model, hardware, (3, 224, 224)))
+        # print('----cifar-100-----')
+        # print(get_relu_count(model, (3, 32, 32)))
+        # print(predict_latency(model, hardware, (3, 32, 32)))
+        # print(predict_throughput(model, hardware, (3, 32, 32)))
+        sys.exit(0)
+    elif args.choice == 'SNL':
+        # SNL
+        model = resnet18_in(num_classes=100, args=args)
+        print(args.checkpoint_path)
+        checkpoint = torch.load(args.checkpoint_path, map_location='cpu')
+        model.load_state_dict(checkpoint['state_dict'])
+        # print(get_relu_count(model, (3, 32, 32), ops=['Alpha']))
+        # print(eval(args.input_size))
+        print(get_snl_prediction(model=model, input_size=eval(args.input_size)[1:]))
+        exit(0)
+    elif args.choice == 'v0.7':
+        base_path = '~/projects/nonlinearNAS/checkpoints/oneshot/'
+        if args.dataset == 'cifar100':
+            args.input_size = (1, 3, 32, 32)
+            arch_path = base_path + '{}/{}/{}/checkpoint2.json'.format(args.net, args.strategy, args.grad_reg_loss_type)
+        else:
+            arch_path = base_path + '{}/{}/{}/checkpoint.json'.format(args.net, args.strategy, args.grad_reg_loss_type)
+        if not os.path.exists(arch_path):
+            if not os.path.exists(arch_path+'.prob'):
+                sys.exit(0)
+            generate_arch(arch_path+'.prob')
+            arch_path += '.tmp'
+        print(args.net, args.dataset, args.strategy, args.grad_reg_loss_type)
+        args.exported_arch_path = arch_path
+        try:
+            analyze_arch(args, hardware)
+        except:
+            print('running failed')
+    else:
+        base_path = '/home/lifabing/projects/nonlinearNAS/checkpoints/oneshot/'
+        if args.dataset == 'cifar100':
+            args.input_size = (1, 3, 32, 32)
+            arch_path = base_path + '{}/{}/{}/checkpoint2.json'.format(args.net, args.strategy, args.grad_reg_loss_type)
+        else:
+            arch_path = base_path + '{}/{}/{}/checkpoint.json'.format(args.net, args.strategy, args.grad_reg_loss_type)
+        # if not os.path.exists(arch_path):
+        #     if not os.path.exists(arch_path+'.prob'):
+        #         sys.exit(0)
+        #     generate_arch(arch_path+'.prob')
+        #     arch_path += '.tmp'
+        # print(args.net, args.dataset, args.strategy, args.grad_reg_loss_type)
+        # args.exported_arch_path = arch_path
+
+        # analyze_relu_count(args)
+        print(get_relu_count(get_nas_network(args), args.input_size[1:], device='cpu'))
+        # analyze_relu_count(args, supermodel=True)
+        # hardware = {'nonlinear': 3.0, 'linear': 0.5, 'communication': 4.0}
+        # try:
+        #     analyze_arch(args, hardware)
+        # except:
+        #     print('failed')
