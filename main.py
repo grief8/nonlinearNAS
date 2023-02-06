@@ -16,6 +16,7 @@ from models.shufflenet import ShuffleNetV2OneShot
 from nas.estimator import _get_module_with_type, NonlinearLatencyEstimator
 from utils.putils import LabelSmoothingLoss, accuracy, get_parameters, get_nas_network, reproduce_model
 from nas.retrain import Retrain
+from utils.config import hardware
 
 logger = logging.getLogger('nni_proxylessnas')
 
@@ -195,7 +196,7 @@ if __name__ == "__main__":
                                    log_frequency=args.log_frequency,
                                    grad_reg_loss_type=args.grad_reg_loss_type, 
                                    grad_reg_loss_params=grad_reg_loss_params, 
-                                   applied_hardware=args.applied_hardware, dummy_input=(1,)+data_provider.data_shape,
+                                   applied_hardware=hardware, dummy_input=(1,)+data_provider.data_shape,
                                    checkpoint_path=args.exported_arch_path,
                                    strategy=args.strategy,
                                    teacher=teacher)
