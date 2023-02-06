@@ -14,7 +14,7 @@ import utils.datasets as datasets
 from models.model import SearchMobileNet
 from models.shufflenet import ShuffleNetV2OneShot
 from nas.estimator import _get_module_with_type, NonlinearLatencyEstimator
-from utils.putils import LabelSmoothingLoss, accuracy, get_parameters, get_nas_network
+from utils.putils import LabelSmoothingLoss, accuracy, get_parameters, get_nas_network, reproduce_model
 from nas.retrain import Retrain
 
 logger = logging.getLogger('nni_proxylessnas')
@@ -56,6 +56,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_path", default='./checkpoints/resnet18/search_net.pt', type=str)
     parser.add_argument("--no-warmup", dest='warmup', action='store_false')
     parser.add_argument("--strategy", default='latency', type=str, choices=['latency', 'throughput'])
+    parser.add_argument("--threshold", default=0.5, type=float)
     # configurations for retrain
     parser.add_argument("--exported_arch_path", default='./checkpoints/resnet18/checkpoint.json', type=str)
     parser.add_argument("--kd_teacher_path", default=None, type=str)
@@ -70,10 +71,12 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     if args.train_mode == 'retrain':
-        # assert os.path.isfile(args.exported_arch_path), \
-        #     "exported_arch_path {} should be a file.".format(args.exported_arch_path)
-        # with fixed_arch(args.exported_arch_path):
-        model = get_nas_network(args)
+        assert os.path.isfile(args.exported_arch_path), \
+            "exported_arch_path {} should be a file.".format(args.exported_arch_path)
+        with fixed_arch(args.exported_arch_path):
+            model = get_nas_network(args)
+            # model.load_state_dict(torch.load(args.exported_arch_path))
+            # reproduce_model(model, threshold=args.threshold )
             # model = ShuffleNetV2OneShot()
             # model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
             #                         n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
@@ -175,6 +178,10 @@ if __name__ == "__main__":
             sys.exit(1)
         teacher.load_state_dict(torch.load(args.kd_teacher_path))
     if args.train_mode == 'search':
+        # trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
+        #                     export_path=args.checkpoint_path,
+        #                     teacher=teacher)
+        # trainer.run()
         from nas.proxylessnas import ProxylessTrainer
         trainer = ProxylessTrainer(model,
                                    loss=LabelSmoothingLoss(),

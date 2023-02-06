@@ -35,8 +35,8 @@ class NonlinearLatencyEstimator:
         self.in_size = dummy_input
         self.target = target
         self.block_latency_table, self.total_latency = model_latency(model, dummy_input[1:], hardware)
-        # self.non_ops = _get_module_with_type(model, nn.ReLU, [])
-        # self.choices = _get_module_with_type(model, nn.LayerChoice, [])
+        self.non_ops = _get_module_with_type(model, nn.Hardswish, [])
+        self.choices = _get_module_with_type(model, nn.LayerChoice, [])
         self._refresh_table(_get_module_with_type(model, nn.LayerChoice, []))
         print('NonlinearLatencyEstimator initialized...')
 
@@ -63,7 +63,7 @@ class NonlinearLatencyEstimator:
                 idx += 1
         self.block_latency_table = copy.copy(new_table)
 
-    def _cal_latency(self, cur_arch_prob, relu_count):
+    def _cal_latency(self, cur_arch_prob):
         total = 0.0
         for name in self.block_latency_table.keys():
             if name.startswith('LayerChoice'):
@@ -72,28 +72,25 @@ class NonlinearLatencyEstimator:
                 for idx, key in enumerate(table):
                     to = 0.0
                     for _, op in enumerate(table[key]):
-                        if op.startswith('ReLU'):
-                            relu_idx = relu_count.pop(0)
+                        if op.startswith('ReLU') or op.startswith('Hardswish'):
+                            # relu_idx = relu_count.pop(0)
                             to += (size2memory(table[key][op]['input_shape']) + size2memory(
                                 table[key][op]['output_shape'])) \
-                                  * self.hardware['communication'] + table[key][op]['latency'] * \
-                                  (1 - relu_idx / table[key][op]['input_shape'][0])
-                            if relu_idx / table[key][op]['input_shape'][0] > 1:
-                                sys.exit(0)
+                                  * self.hardware['communication'] + size2memory(table[key][op]['input_shape']) * self.hardware['Hardswish']
+                            # if relu_idx / table[key][op]['input_shape'][0] > 1:
+                            #     sys.exit(0)
                         else:
                             to += table[key][op]['latency']
                     total += to * layer_choice_prob[idx]
-            elif name.startswith('ReLU'):
-                relu_idx = relu_count.pop(0)
+            elif name.startswith('ReLU') or name.startswith('Hardswish'):
                 total += (size2memory(self.block_latency_table[name]['input_shape']) + size2memory(
                     self.block_latency_table[name]['output_shape'])) \
-                         * self.hardware['communication'] + self.block_latency_table[name]['latency'] * \
-                         (1 - relu_idx / self.block_latency_table[name]['input_shape'][0])
+                         * self.hardware['communication'] + self.block_latency_table[name]['latency'] 
             else:
                 total += self.block_latency_table[name]['latency']
         return total
 
-    def _cal_throughput_latency(self, cur_arch_prob, relu_count):
+    def _cal_throughput_latency(self, cur_arch_prob):
         sequence = []
         total = linear = 0.0
         for name in self.block_latency_table.keys():
@@ -108,30 +105,25 @@ class NonlinearLatencyEstimator:
                 lin = 0.0
                 sub_seq = []
                 for _, op in enumerate(table[key]):
-                    if op.startswith('ReLU'):
+                    if op.startswith('ReLU') or op.startswith('Hardswish'):
                         if lin > 0:
                             sub_seq.append(lin)
                             lin = 0.0
-                        relu_idx = relu_count.pop(0)
                         sub_seq.append((size2memory(table[key][op]['input_shape']) + size2memory(
                             table[key][op]['output_shape'])) \
-                                       * self.hardware['communication'] + table[key][op]['latency'] * \
-                                       (1 - relu_idx / table[key][op]['input_shape'][0]))
-
+                                       * self.hardware['communication'] + table[key][op]['latency'] )
                     else:
                         lin += table[key][op]['latency']
                 if lin > 0:
                     sub_seq.append(lin)
                 sequence.extend(sub_seq)
-            elif name.startswith('ReLU'):
+            elif name.startswith('ReLU') or name.startswith('Hardswish'):
                 if linear > 0:
                     sequence.append(linear)
                     linear = .0
-                relu_idx = relu_count.pop(0)
                 sequence.append((size2memory(self.block_latency_table[name]['input_shape']) + size2memory(
                     self.block_latency_table[name]['output_shape'])) \
-                         * self.hardware['communication'] + self.block_latency_table[name]['latency'] * \
-                         (1 - relu_idx / self.block_latency_table[name]['input_shape'][0]))
+                         * self.hardware['communication'] + self.block_latency_table[name]['latency'] )
             else:
                 linear += self.block_latency_table[name]['latency']
         if linear > 0:
@@ -142,9 +134,9 @@ class NonlinearLatencyEstimator:
             total += max(sequence[i], sequence[i + 1])
         return total / 2
 
-    def cal_expected_latency(self, cur_arch_prob, relu_count):
+    def cal_expected_latency(self, cur_arch_prob):
         if self.target == 'latency':
-            lat = self._cal_latency(cur_arch_prob, relu_count)
+            lat = self._cal_latency(cur_arch_prob)
         else:
-            lat = self._cal_throughput_latency(cur_arch_prob, relu_count)
+            lat = self._cal_throughput_latency(cur_arch_prob)
         return lat

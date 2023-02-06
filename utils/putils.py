@@ -185,12 +185,12 @@ def get_nas_network(args, class_flag=False):
     elif args.net == 'searchcifarsupermodel26':
         from models.supermodel import cifarsupermodel26
         net = cifarsupermodel26
-    elif args.net == 'searchcifarsupermodel169':
-        from models.supermodel import cifarsupermodel169
-        net = cifarsupermodel169
-    elif args.net == 'searchcifarsupermodel201':
-        from models.supermodel import cifarsupermodel201
-        net = cifarsupermodel201
+    elif args.net == 'searchcifarsupermodel50':
+        from models.supermodel import cifarsupermodel50
+        net = cifarsupermodel50
+    elif args.net == 'searchcifarsupermodel101':
+        from models.supermodel import cifarsupermodel101
+        net = cifarsupermodel101
     elif args.net == 'searchcifarsupermodel161':
         from models.supermodel import cifarsupermodel161
         net = cifarsupermodel161
@@ -255,3 +255,18 @@ class BinaryPReLu(nn.Module):
         zeros = torch.zeros_like(weight)
         self.relu.weight = torch.where(weight <= 0.5, zeros, ones)
         return self.relu(x)
+
+
+def reproduce_model(model, threshold=0.5):
+    for name, param in model.named_parameters():
+        if 'alpha' in name:
+            values, _ = torch.max(param.data, dim=0)
+            threshold = values * threshold
+            alpha = torch.where(param.data > threshold, torch.ones_like(param.data), torch.zeros_like(param.data))
+            param.data.copy_(alpha)
+            param.requires_grad = False
+        elif 'beta' in name:
+            values, idx = torch.max(param.data, dim=0)
+            param.data[idx] = 1
+            param.data[1-idx] = 0
+            param.requires_grad = False
