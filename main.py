@@ -58,6 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-warmup", dest='warmup', action='store_false')
     parser.add_argument("--strategy", default='latency', type=str, choices=['latency', 'throughput'])
     parser.add_argument("--threshold", default=0.5, type=float)
+    parser.add_argument("--ref_latency", default=50000, type=float)
     # configurations for retrain
     parser.add_argument("--exported_arch_path", default='./checkpoints/resnet18/checkpoint.json', type=str)
     parser.add_argument("--kd_teacher_path", default=None, type=str)
@@ -198,7 +199,7 @@ if __name__ == "__main__":
                                    grad_reg_loss_params=grad_reg_loss_params, 
                                    applied_hardware=hardware, dummy_input=(1,)+data_provider.data_shape,
                                    checkpoint_path=args.exported_arch_path,
-                                   strategy=args.strategy,
+                                   ref_latency=args.ref_latency,
                                    teacher=teacher)
         trainer.fit()
         print('Final architecture:', trainer.export())

@@ -39,10 +39,10 @@ function run_proxylessnas() {
   model=$1
   lossType=$2
   wid=$3
-  strategy=$5
+  count=$5
   batch=$6
-  echo start "${model}" "${lossType}" "$wid" "${strategy}"
-  dir=./checkpoints/oneshot/"${model}"/"${strategy}"/"${lossType}"
+  echo start "${model}" "${lossType}" "$wid" "${count}"
+  dir=./checkpoints/oneshot/"${model}"/"${count}"/"${lossType}"
   #  search
   mkdir -p "${dir}"
   python main.py  \
@@ -52,12 +52,12 @@ function run_proxylessnas() {
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
   --pretrained \
-  --epochs 50 \
+  --epochs 100 \
   --train_batch_size "${batch}" \
+  --ref_latency "${count}" \
   --checkpoint_path "${dir}"/arch_path.pt \
   --exported_arch_path "${dir}"/checkpoint2.json \
   --train_mode "$4" \
-  --strategy "$strategy" \
   --kd_teacher_path ~/projects/nonlinearNAS/checkpoints/teacher/cifar_resnet152.pth
 }
 #for constraint in 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0;

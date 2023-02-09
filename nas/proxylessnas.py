@@ -14,6 +14,7 @@ from nni.retiarii.oneshot.interface import BaseOneShotTrainer
 from nni.retiarii.oneshot.pytorch.utils import AverageMeterGroup, replace_layer_choice, replace_input_choice, to_device
 
 from nas.estimator import NonlinearLatencyEstimator, _get_module_with_type
+from utils.tools import get_relu_count
 
 _logger = logging.getLogger(__name__)
 torch.autograd.set_detect_anomaly(True)
@@ -165,7 +166,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
                  arc_learning_rate=1.0E-3,
                  grad_reg_loss_type=None, grad_reg_loss_params=None,
                  applied_hardware=None, dummy_input=(1, 3, 224, 224),
-                 checkpoint_path=None, strategy='latency',
+                 checkpoint_path=None, 
+                 ref_latency=None,
                  teacher=None):
         self.model = model
         self.loss = loss
@@ -193,8 +195,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
         if not applied_hardware:
             applied_hardware = {'Hardswish': 3.0, 'ReLU': 3.0, 'PReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
                                 'communication': 2.0, 'LayerChoice': 0.0}
-        self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input,
-                                                           target=strategy)
+        self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input)
 
         self.reg_loss_type = grad_reg_loss_type
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
@@ -208,9 +209,11 @@ class ProxylessTrainer(BaseOneShotTrainer):
             module.to(self.device)
         self.non_ops = _get_module_with_type(self.model, [nn.Hardswish], [])
 
-        current_architecture_prob = self._get_arch_relu()
-        # relu_count because prelu is init to 0.25
-        self.ref_latency = self.latency_estimator.cal_expected_latency(current_architecture_prob)
+        # get minimal relu count 
+        if ref_latency is None:
+            self.ref_latency = get_relu_count(self.model, dummy_input[1:])
+        else:
+            self.ref_latency = ref_latency
 
         self.obj_path = self.checkpoint_path.rstrip('.json') + '.o'
         if os.path.exists(self.obj_path):
@@ -278,7 +281,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
             metrics = self.metrics(logits, trn_y)
             metrics["loss"] = loss.item()
             if self.latency_estimator:
-                metrics["latency"] = self._export_latency()
+                metrics["nonlinear_count"] = self._export_latency()
             meters.update(metrics)
             print("Epoch [%s/%s] Step [%s/%s]  %s", epoch + 1,
                              self.num_epochs, step + 1, len(self.train_loader), meters)
