@@ -1,4 +1,5 @@
 import copy
+from functools import reduce
 import logging
 import sys
 from collections import OrderedDict
@@ -29,11 +30,10 @@ def _get_module_with_type(root_module, type_name, modules):
 
 
 class NonlinearLatencyEstimator:
-    def __init__(self, hardware, model, dummy_input=(1, 3, 224, 224), target='latency'):
+    def __init__(self, hardware, model, dummy_input=(1, 3, 224, 224)):
         _logger.info(f'Get latency predictor for applied hardware: {hardware}.')
         self.hardware = hardware
         self.in_size = dummy_input
-        self.target = target
         self.block_latency_table, self.total_latency = model_latency(model, dummy_input[1:], hardware)
         self.non_ops = _get_module_with_type(model, nn.Hardswish, [])
         self.choices = _get_module_with_type(model, nn.LayerChoice, [])
@@ -63,7 +63,7 @@ class NonlinearLatencyEstimator:
                 idx += 1
         self.block_latency_table = copy.copy(new_table)
 
-    def _cal_latency(self, cur_arch_prob):
+    def _cal_nonlinear_count(self, cur_arch_prob):
         total = 0.0
         for name in self.block_latency_table.keys():
             if name.startswith('LayerChoice'):
@@ -73,70 +73,12 @@ class NonlinearLatencyEstimator:
                     to = 0.0
                     for _, op in enumerate(table[key]):
                         if op.startswith('ReLU') or op.startswith('Hardswish'):
-                            # relu_idx = relu_count.pop(0)
-                            to += (size2memory(table[key][op]['input_shape']) + size2memory(
-                                table[key][op]['output_shape'])) \
-                                  * self.hardware['communication'] + size2memory(table[key][op]['input_shape']) * self.hardware['Hardswish']
-                            # if relu_idx / table[key][op]['input_shape'][0] > 1:
-                            #     sys.exit(0)
-                        else:
-                            to += table[key][op]['latency']
+                            to += abs(reduce(lambda x, y: x * y, table[key][op]["output_shape"]))
                     total += to * layer_choice_prob[idx]
             elif name.startswith('ReLU') or name.startswith('Hardswish'):
-                total += (size2memory(self.block_latency_table[name]['input_shape']) + size2memory(
-                    self.block_latency_table[name]['output_shape'])) \
-                         * self.hardware['communication'] + self.block_latency_table[name]['latency'] 
-            else:
-                total += self.block_latency_table[name]['latency']
+                total += abs(reduce(lambda x, y: x * y, table[key][op]["output_shape"]))
         return total
 
-    def _cal_throughput_latency(self, cur_arch_prob):
-        sequence = []
-        total = linear = 0.0
-        for name in self.block_latency_table.keys():
-            if name.startswith('LayerChoice'):
-                if linear > 0:
-                    sequence.append(linear)
-                    linear = .0
-                layer_choice_prob = cur_arch_prob.pop(0)
-                # choose the max prob branch
-                key = str(int(layer_choice_prob.max(0).values))
-                table = self.block_latency_table[name]
-                lin = 0.0
-                sub_seq = []
-                for _, op in enumerate(table[key]):
-                    if op.startswith('ReLU') or op.startswith('Hardswish'):
-                        if lin > 0:
-                            sub_seq.append(lin)
-                            lin = 0.0
-                        sub_seq.append((size2memory(table[key][op]['input_shape']) + size2memory(
-                            table[key][op]['output_shape'])) \
-                                       * self.hardware['communication'] + table[key][op]['latency'] )
-                    else:
-                        lin += table[key][op]['latency']
-                if lin > 0:
-                    sub_seq.append(lin)
-                sequence.extend(sub_seq)
-            elif name.startswith('ReLU') or name.startswith('Hardswish'):
-                if linear > 0:
-                    sequence.append(linear)
-                    linear = .0
-                sequence.append((size2memory(self.block_latency_table[name]['input_shape']) + size2memory(
-                    self.block_latency_table[name]['output_shape'])) \
-                         * self.hardware['communication'] + self.block_latency_table[name]['latency'] )
-            else:
-                linear += self.block_latency_table[name]['latency']
-        if linear > 0:
-            sequence.append(linear)
-
-        sequence.append(sequence[0])
-        for i in range(len(sequence) - 1):
-            total += max(sequence[i], sequence[i + 1])
-        return total / 2
-
     def cal_expected_latency(self, cur_arch_prob):
-        if self.target == 'latency':
-            lat = self._cal_latency(cur_arch_prob)
-        else:
-            lat = self._cal_throughput_latency(cur_arch_prob)
+        lat = self._cal_nonlinear_count(cur_arch_prob)
         return lat
