@@ -193,7 +193,7 @@ if __name__ == "__main__":
                                    num_epochs=args.epochs,
                                    batch_size=args.train_batch_size,
                                    arc_learning_rate=1e-5,
-                                   warmup_epochs=60,
+                                   warmup_epochs=20,
                                    log_frequency=args.log_frequency,
                                    grad_reg_loss_type=args.grad_reg_loss_type, 
                                    grad_reg_loss_params=grad_reg_loss_params, 
