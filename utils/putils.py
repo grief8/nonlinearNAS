@@ -260,8 +260,9 @@ class BinaryPReLu(nn.Module):
 def reproduce_model(model, threshold=0.5):
     for name, param in model.named_parameters():
         if 'alpha' in name:
-            values, _ = torch.max(param.data, dim=0)
-            threshold = values * threshold
+            threshold, _ = torch.mean(param.data, dim=0)
+            # values, _ = torch.max(param.data, dim=0)
+            # threshold = values * threshold
             alpha = torch.where(param.data > threshold, torch.ones_like(param.data), torch.zeros_like(param.data))
             param.data.copy_(alpha)
             param.requires_grad = False

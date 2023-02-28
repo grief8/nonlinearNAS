@@ -77,8 +77,8 @@ if __name__ == "__main__":
             "exported_arch_path {} should be a file.".format(args.exported_arch_path)
         with fixed_arch(args.exported_arch_path):
             model = get_nas_network(args)
-            # model.load_state_dict(torch.load(args.exported_arch_path))
-            # reproduce_model(model, threshold=args.threshold )
+            model.load_state_dict(torch.load(args.exported_arch_path))
+            reproduce_model(model, threshold=args.threshold )
             # model = ShuffleNetV2OneShot()
             # model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
             #                         n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
