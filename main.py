@@ -77,44 +77,10 @@ if __name__ == "__main__":
             "exported_arch_path {} should be a file.".format(args.exported_arch_path)
         with fixed_arch(args.exported_arch_path):
             model = get_nas_network(args)
-            model.load_state_dict(torch.load(args.exported_arch_path))
-            reproduce_model(model, threshold=args.threshold )
-            # model = ShuffleNetV2OneShot()
-            # model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
-            #                         n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
-            #                         stride_stages=[int(i) for i in args.stride_stages.split(',')],
-            #                         n_classes=1000,
-            #                         dropout_rate=args.dropout_rate,
-            #                         bn_param=(args.bn_momentum, args.bn_eps))
+            # model.load_state_dict(torch.load(args.exported_arch_path))
+            # reproduce_model(model, threshold=args.threshold )
     else:
         model = get_nas_network(args)
-        # model = ShuffleNetV2OneShot(input_size=32, n_classes=100)
-        # model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
-        #                         n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
-        #                         stride_stages=[int(i) for i in args.stride_stages.split(',')],
-        #                         n_classes=1000,
-        #                         dropout_rate=args.dropout_rate,
-        #                         bn_param=(args.bn_momentum, args.bn_eps))
-        # logger.info('SearchMobileNet model create done')
-        # model.init_model()
-        # logger.info('SearchMobileNet model init done')
-
-    # if os.path.exists(args.exported_arch_path.rstrip('.json') + '.pth'):
-    #     st = torch.load(args.exported_arch_path.rstrip('.json') + '.pth')
-    #     model.load_state_dict(st)
-    # non_ops = _get_module_with_type(model, [nn.PReLU], [])
-    # for module in non_ops:
-    #     ones = torch.ones_like(module.weight)
-    #     zeros = torch.zeros_like(module.weight)
-    #     module.weight = torch.nn.Parameter(torch.where(module.weight <= 0.5, zeros, ones), requires_grad=False)
-    # relu_count = []
-    # for module in non_ops:
-    #     relu_count.append(float(torch.sum(module.weight)))
-    # applied_hardware = {'PReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
-    #                     'communication': 2.0, 'LayerChoice': 0.0}
-    # latency_estimator = NonlinearLatencyEstimator(applied_hardware, model, (1, 3, 32, 32),
-    #                                               target='throughput')
-    # print(args.grad_reg_loss_type, args.strategy, latency_estimator.cal_expected_latency([], relu_count=relu_count))
     # sys.exit(1)
 
     # move network to GPU if available

@@ -7,6 +7,7 @@ from torch import nn as nn
 import torch.nn.functional as F
 from nni.retiarii.oneshot.pytorch.utils import AverageMeter
 from utils.tools import get_relu_count
+from utils.putils import reproduce_model
 
 def cross_entropy_with_label_smoothing(pred, target, label_smoothing=0.1):
     logsoftmax = nn.LogSoftmax()
@@ -50,6 +51,8 @@ class Retrain:
         if os.path.exists(export_path):
             st = torch.load(export_path)
             model.load_state_dict(st)
+            reproduce_model(model)
+            print('---freeze branches----')
         # knowledge distillation
         self.teacher = teacher
         self.temp = 4
