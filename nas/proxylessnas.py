@@ -132,6 +132,9 @@ class DartsInputChoice(nn.Module):
     def resample(self):
         pass
 
+    def finalize_grad(self):
+        pass
+
     def export(self):
         return torch.argsort(-self.alpha).cpu().numpy().tolist()[:self.n_chosen]
 
