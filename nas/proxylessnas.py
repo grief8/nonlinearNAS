@@ -104,12 +104,39 @@ class ProxylessLayerChoice(nn.Module):
         return torch.argmax(self.alpha).item()
 
     def export_prob(self):
-        return F.softmax(self.alpha, dim=-1)
+        return self.alpha
 
 
-class ProxylessInputChoice(nn.Module):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError('Input choice is not supported for ProxylessNAS.')
+class DartsInputChoice(nn.Module):
+    def __init__(self, input_choice):
+        super(DartsInputChoice, self).__init__()
+        self.name = input_choice.label
+        self.alpha = nn.Parameter(torch.randn(input_choice.n_candidates) * 1e-3)
+        self.n_chosen = input_choice.n_chosen or 1
+
+    def forward(self, inputs):
+        inputs = torch.stack(inputs)
+        alpha_shape = [-1] + [1] * (len(inputs.size()) - 1)
+        return torch.sum(inputs * F.softmax(self.alpha, -1).view(*alpha_shape), 0)
+
+    def parameters(self):
+        for _, p in self.named_parameters():
+            yield p
+
+    def named_parameters(self):
+        for name, p in super(DartsInputChoice, self).named_parameters():
+            if name == 'alpha':
+                continue
+            yield name, p
+    
+    def resample(self):
+        pass
+
+    def export(self):
+        return torch.argsort(-self.alpha).cpu().numpy().tolist()[:self.n_chosen]
+
+    def export_prob(self):
+        return self.alpha
 
 
 class ProxylessTrainer(BaseOneShotTrainer):
@@ -204,7 +231,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.model.to(self.device)
         self.nas_modules = []
         replace_layer_choice(self.model, ProxylessLayerChoice, self.nas_modules)
-        replace_input_choice(self.model, ProxylessInputChoice, self.nas_modules)
+        replace_input_choice(self.model, DartsInputChoice, self.nas_modules)
         for _, module in self.nas_modules:
             module.to(self.device)
         self.non_ops = _get_module_with_type(self.model, [nn.Hardswish], [])

@@ -42,7 +42,7 @@ function run_proxylessnas() {
   count=$5
   batch=$6
   echo start "${model}" "${lossType}" "$wid" "${count}"
-  dir=./checkpoints/oneshot/"${model}"/"${count}"/"${lossType}"
+  dir=./checkpoints/pruning/"${model}"/"${count}"/"${lossType}"
   #  search
   mkdir -p "${dir}"
   python main.py  \
@@ -66,4 +66,4 @@ function run_proxylessnas() {
 #done;
 #run_proxylessnas "$1" add#linear 0  "$2" "$3" &
 #run_proxylessnas "$1" mul#log 0 "$2" "$3"
-run_proxylessnas "$1" add#linear 0 "$2" "$3" "$4"
+run_proxylessnas "$1" add#linear 0,1,2,3 "$2" "$3" "$4"

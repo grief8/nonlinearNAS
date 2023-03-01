@@ -126,7 +126,7 @@ class Retrain:
                 print(batch_log)
         return top1, top5
 
-    def train(self, validation_frequency=5):
+    def train(self, validation_frequency=1):
         best_acc = 0
         nBatch = len(self.train_loader)
 
