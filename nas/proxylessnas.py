@@ -351,8 +351,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
             reg_loss = (math.log(expected_latency) / math.log(self.ref_latency)) ** beta
             return logits, alpha * ce_loss * reg_loss
         elif self.reg_loss_type == 'add#linear':
-            reg_lambda = self.reg_loss_params.get('lambda', 2e-1)
-            reg_loss = reg_lambda * (expected_latency - self.ref_latency) / self.ref_latency
+            reg_lambda = self.reg_loss_params.get('lambda', 1e-5)
+            reg_loss = reg_lambda * math.abs(expected_latency - self.ref_latency)
             return logits, ce_loss + reg_loss
         elif self.reg_loss_type is None:
             return logits, ce_loss
