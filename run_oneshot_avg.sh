@@ -56,7 +56,7 @@ function run_proxylessnas() {
   --train_batch_size "${batch}" \
   --ref_latency "${count}" \
   --checkpoint_path "${dir}"/arch_path.pt \
-  --exported_arch_path "${dir}"/checkpoint2.json \
+  --exported_arch_path "${dir}"/checkpoint2_avg.json \
   --train_mode "$4"
 }
 #for constraint in 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0;

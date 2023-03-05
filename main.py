@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("--dropout_rate", default=0, type=float)
     parser.add_argument("--no_decay_keys", default='bn', type=str, choices=[None, 'bn', 'bn#bias'])
     parser.add_argument('--grad_reg_loss_type', default='add#linear', type=str, choices=['add#linear', 'mul#log', 'raw'])
-    parser.add_argument('--grad_reg_loss_lambda', default=1e-5, type=float)  # grad_reg_loss_params
+    parser.add_argument('--grad_reg_loss_lambda', default=1e-1, type=float)  # grad_reg_loss_params
     parser.add_argument('--grad_reg_loss_alpha', default=0.2, type=float)  # grad_reg_loss_params
     parser.add_argument('--grad_reg_loss_beta',  default=0.3, type=float)  # grad_reg_loss_params
     parser.add_argument("--applied_hardware", default=None, type=str, help='the hardware to predict model latency')
@@ -158,8 +158,8 @@ if __name__ == "__main__":
                                    metrics=lambda output, target: accuracy(output, target, topk=(1, 5,)),
                                    num_epochs=args.epochs,
                                    batch_size=args.train_batch_size,
-                                   arc_learning_rate=1e-5,
-                                   warmup_epochs=20,
+                                   arc_learning_rate=1e-2,
+                                   warmup_epochs=0,
                                    log_frequency=args.log_frequency,
                                    grad_reg_loss_type=args.grad_reg_loss_type, 
                                    grad_reg_loss_params=grad_reg_loss_params, 
@@ -167,10 +167,11 @@ if __name__ == "__main__":
                                    checkpoint_path=args.exported_arch_path,
                                    ref_latency=args.ref_latency,
                                    teacher=teacher)
-        trainer.fit()
+        # trainer.fit()
         print('Final architecture:', trainer.export())
-        json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
-        json.dump(trainer.export_prob(), open(args.exported_arch_path + '.prob', 'w'))
+        # json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
+        json.dump(trainer.export_avg(), open(args.exported_arch_path.rstrip('.json') + '_avg.json', 'w'))
+        # json.dump(trainer.export_prob(), open(args.exported_arch_path + '.prob', 'w'))
     elif args.train_mode == 'retrain':
         # this is retrain
         print('this is retrain')

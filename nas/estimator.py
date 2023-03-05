@@ -72,11 +72,12 @@ class NonlinearLatencyEstimator:
                 for idx, key in enumerate(table):
                     to = 0.0
                     for _, op in enumerate(table[key]):
+                        # print(op, idx, layer_choice_prob[idx])
                         if op.startswith('ReLU') or op.startswith('Hardswish'):
                             to += abs(reduce(lambda x, y: x * y, table[key][op]["output_shape"]))
                     total += to * layer_choice_prob[idx]
-            elif name.startswith('ReLU') or name.startswith('Hardswish'):
-                total += abs(reduce(lambda x, y: x * y, table[key][op]["output_shape"]))
+            # elif name.startswith('ReLU') or name.startswith('Hardswish'):
+            #     total += abs(reduce(lambda x, y: x * y, table[key][op]["output_shape"]))
         return total
 
     def cal_expected_latency(self, cur_arch_prob):

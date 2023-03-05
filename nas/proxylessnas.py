@@ -5,6 +5,7 @@ import os
 import logging
 import pickle
 import time
+import math
 
 import torch
 import torch.nn as nn
@@ -104,7 +105,7 @@ class ProxylessLayerChoice(nn.Module):
         return torch.argmax(self.alpha).item()
 
     def export_prob(self):
-        return self.alpha
+        return F.softmax(self.alpha, dim=-1)
 
 
 class DartsInputChoice(nn.Module):
@@ -128,18 +129,12 @@ class DartsInputChoice(nn.Module):
             if name == 'alpha':
                 continue
             yield name, p
-    
-    def resample(self):
-        pass
-
-    def finalize_grad(self):
-        pass
 
     def export(self):
         return torch.argsort(-self.alpha).cpu().numpy().tolist()[:self.n_chosen]
 
     def export_prob(self):
-        return self.alpha
+        return F.softmax(self.alpha, dim=-1)
 
 
 class ProxylessTrainer(BaseOneShotTrainer):
@@ -214,9 +209,12 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.checkpoint_path = checkpoint_path
 
         # knowledge distillation
-        self.teacher = torch.nn.DataParallel(teacher)
-        self.teacher.to(self.device)
-        self.teacher.eval()
+        if teacher is not None:
+            self.teacher = torch.nn.DataParallel(teacher)
+            self.teacher.to(self.device)
+            self.teacher.eval()
+        else:
+            self.teacher = teacher
         self.temp = 4
         self.alpha = 0.3
         self.soft_loss = nn.KLDivLoss(reduction='batchmean')
@@ -233,9 +231,12 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.model = torch.nn.DataParallel(self.model)
         self.model.to(self.device)
         self.nas_modules = []
+        self.darts_modules = []
         replace_layer_choice(self.model, ProxylessLayerChoice, self.nas_modules)
-        replace_input_choice(self.model, DartsInputChoice, self.nas_modules)
+        replace_input_choice(self.model, DartsInputChoice, self.darts_modules)
         for _, module in self.nas_modules:
+            module.to(self.device)
+        for _, module in self.darts_modules:
             module.to(self.device)
         self.non_ops = _get_module_with_type(self.model, [nn.Hardswish], [])
 
@@ -344,15 +345,14 @@ class ProxylessTrainer(BaseOneShotTrainer):
         expected_latency = self.latency_estimator.cal_expected_latency(current_architecture_prob)
 
         if self.reg_loss_type == 'mul#log':
-            import math
             alpha = self.reg_loss_params.get('alpha', 1)
             beta = self.reg_loss_params.get('beta', 0.6)
             # noinspection PyUnresolvedReferences
             reg_loss = (math.log(expected_latency) / math.log(self.ref_latency)) ** beta
             return logits, alpha * ce_loss * reg_loss
         elif self.reg_loss_type == 'add#linear':
-            reg_lambda = self.reg_loss_params.get('lambda', 1e-5)
-            reg_loss = reg_lambda * math.abs(expected_latency - self.ref_latency)
+            reg_lambda = self.reg_loss_params.get('lambda')
+            reg_loss = reg_lambda * abs(expected_latency - self.ref_latency)
             return logits, ce_loss + reg_loss
         elif self.reg_loss_type is None:
             return logits, ce_loss
@@ -402,6 +402,9 @@ class ProxylessTrainer(BaseOneShotTrainer):
         for name, module in self.nas_modules:
             if name not in result:
                 result[name] = module.export()
+        for name, module in self.darts_modules:
+            if name not in result:
+                result[name] = module.export()
         return result
 
     @torch.no_grad()
@@ -410,4 +413,22 @@ class ProxylessTrainer(BaseOneShotTrainer):
         for name, module in self.nas_modules:
             if name not in result:
                 result[name] = module.export_prob().tolist()
+        for name, module in self.darts_modules:
+            if name not in result:
+                result[name] = module.export_prob().tolist()
+        return result
+    
+    @torch.no_grad()
+    def export_avg(self):
+        result = dict()
+        for name, module in self.nas_modules:
+            if name not in result:
+                result[name] = module.export()
+        for name, module in self.darts_modules:
+            if name not in result:
+                data = module.export_prob()
+                threshold = torch.mean(data, dim=0)
+                greater_than_threshold = torch.gt(data, threshold)
+                # 使用 torch.where 函数获取大于阈值的索引
+                result[name] = torch.where(greater_than_threshold)[0].tolist()
         return result
