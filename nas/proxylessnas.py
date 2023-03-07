@@ -432,3 +432,18 @@ class ProxylessTrainer(BaseOneShotTrainer):
                 # 使用 torch.where 函数获取大于阈值的索引
                 result[name] = torch.where(greater_than_threshold)[0].tolist()
         return result
+
+    def export_top(self, topk=1):
+        result = dict()
+        for name, module in self.nas_modules:
+            if name not in result:
+                result[name] = module.export()
+        if topk == -1:
+            for name, module in self.darts_modules:
+                if name not in result:
+                    result[name] = torch.argsort(-module.alpha).cpu().numpy().tolist()
+        else:
+            for name, module in self.darts_modules:
+                if name not in result:
+                    result[name] = torch.argsort(-module.alpha).cpu().numpy().tolist()[:topk]
+        return result
