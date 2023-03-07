@@ -171,9 +171,10 @@ if __name__ == "__main__":
         print('Final architecture:', trainer.export())
         json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
         json.dump(trainer.export_avg(), open(args.exported_arch_path.rstrip('.json') + '_avg.json', 'w'))
-        topk = 1
-        json.dump(trainer.export_top(topk), open(args.exported_arch_path.rstrip('.json') + '_top{}.json'.format(topk), 'w'))
-        json.dump(trainer.export_top(-1), open(args.exported_arch_path.rstrip('.json') + '_top-1.json', 'w'))
+        topks = [1, 2, 6, 8, -1]
+        for topk in topks:
+            json.dump(trainer.export_top(topk), open(args.exported_arch_path.rstrip('.json') + '_top{}.json'.format(topk), 'w'))
+        # json.dump(trainer.export_top(-1), open(args.exported_arch_path.rstrip('.json') + '_top-1.json', 'w'))
         json.dump(trainer.export_prob(), open(args.exported_arch_path + '.prob', 'w'))
     elif args.train_mode == 'retrain':
         # this is retrain
