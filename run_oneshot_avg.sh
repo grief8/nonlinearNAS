@@ -52,12 +52,13 @@ function run_proxylessnas() {
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
   --pretrained \
-  --epochs 100 \
+  --epochs 150 \
   --train_batch_size "${batch}" \
   --ref_latency "${count}" \
   --checkpoint_path "${dir}"/arch_path.pt \
   --exported_arch_path "${dir}"/checkpoint2_"${7}".json \
-  --train_mode "$4"
+  --train_mode "$4" \
+  --kd_teacher_path ~/projects/nonlinearNAS/checkpoints/teacher/cifar_resnet152.pth
 }
 #for constraint in 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0;
 #do

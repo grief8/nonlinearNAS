@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("--dropout_rate", default=0, type=float)
     parser.add_argument("--no_decay_keys", default='bn', type=str, choices=[None, 'bn', 'bn#bias'])
     parser.add_argument('--grad_reg_loss_type', default='add#linear', type=str, choices=['add#linear', 'mul#log', 'raw'])
-    parser.add_argument('--grad_reg_loss_lambda', default=1e-1, type=float)  # grad_reg_loss_params
+    parser.add_argument('--grad_reg_loss_lambda', default=1e-3, type=float)  # grad_reg_loss_params
     parser.add_argument('--grad_reg_loss_alpha', default=0.2, type=float)  # grad_reg_loss_params
     parser.add_argument('--grad_reg_loss_beta',  default=0.3, type=float)  # grad_reg_loss_params
     parser.add_argument("--applied_hardware", default=None, type=str, help='the hardware to predict model latency')
@@ -158,7 +158,7 @@ if __name__ == "__main__":
                                    metrics=lambda output, target: accuracy(output, target, topk=(1, 5,)),
                                    num_epochs=args.epochs,
                                    batch_size=args.train_batch_size,
-                                   arc_learning_rate=1e-2,
+                                   arc_learning_rate=1e-3,
                                    warmup_epochs=0,
                                    log_frequency=args.log_frequency,
                                    grad_reg_loss_type=args.grad_reg_loss_type, 
