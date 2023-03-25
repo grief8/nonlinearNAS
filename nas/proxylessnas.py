@@ -433,17 +433,18 @@ class ProxylessTrainer(BaseOneShotTrainer):
                 result[name] = torch.where(greater_than_threshold)[0].tolist()
         return result
 
-    def export_top(self, topk=1):
+    def export_top(self, topk_layer=1, topk_block=1):
         result = dict()
         for name, module in self.nas_modules:
             if name not in result:
                 result[name] = module.export()
-        if topk == -1:
-            for name, module in self.darts_modules:
+        for name, module in self.darts_modules:
                 if name not in result:
-                    result[name] = torch.argsort(-module.alpha).cpu().numpy().tolist()
-        else:
-            for name, module in self.darts_modules:
-                if name not in result:
-                    result[name] = torch.argsort(-module.alpha).cpu().numpy().tolist()[:topk]
+                    choices = torch.argsort(-self.alpha).cpu().numpy().tolist()
+                    topk_layer = len(choices) if topk_layer > len(choices) or topk_layer == -1 else topk_layer
+                    topk_block = len(choices) if topk_block > len(choices) or topk_block == -1 else topk_block
+                    if len(choices) == 11:
+                        result[name] = choices[:topk_layer]
+                    else:
+                        result[name] = choices[:topk_block]
         return result
