@@ -440,7 +440,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
                 result[name] = module.export()
         for name, module in self.darts_modules:
                 if name not in result:
-                    choices = torch.argsort(-self.alpha).cpu().numpy().tolist()
+                    choices = torch.argsort(-module.alpha).cpu().numpy().tolist()
                     topk_layer = len(choices) if topk_layer > len(choices) or topk_layer == -1 else topk_layer
                     topk_block = len(choices) if topk_block > len(choices) or topk_block == -1 else topk_block
                     if len(choices) == 11:
