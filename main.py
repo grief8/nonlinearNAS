@@ -173,8 +173,8 @@ if __name__ == "__main__":
         json.dump(trainer.export_avg(), open(args.exported_arch_path.rstrip('.json') + '_avg.json', 'w'))
         topks = [1, 2, 4, 6, 8, -1]
         for topk in topks:
-            json.dump(trainer.export_top(topk_layer=topk, topk_block=4), open(args.exported_arch_path.rstrip('.json') + '_layer{}_block-1.json'.format(topk), 'w'))
-            json.dump(trainer.export_top(topk_layer=4, topk_block=topk), open(args.exported_arch_path.rstrip('.json') + '_layer-1_block{}.json'.format(topk), 'w'))
+            json.dump(trainer.export_top(topk_layer=topk, topk_block=1), open(args.exported_arch_path.rstrip('.json') + '_layer{}_block1.json'.format(topk), 'w'))
+            json.dump(trainer.export_top(topk_layer=4, topk_block=topk), open(args.exported_arch_path.rstrip('.json') + '_layer4_block{}.json'.format(topk), 'w'))
         # json.dump(trainer.export_top(-1), open(args.exported_arch_path.rstrip('.json') + '_top-1.json', 'w'))
         json.dump(trainer.export_prob(), open(args.exported_arch_path + '.prob', 'w'))
     elif args.train_mode == 'retrain':
