@@ -12,5 +12,5 @@ echo "Begin layer"
 echo "-----------------------"
 for idx in 1 2 6 4 8 -1;
     do 
-    ./run_oneshot_avg.sh ${model} retrain ${count} ${batch} layer4_block${idx};
+    ./run_oneshot_avg.sh ${model} retrain ${count} ${batch} layer${idx}_block1;
 done
