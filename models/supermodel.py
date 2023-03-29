@@ -52,11 +52,14 @@ class _SampleLayer(nn.Module):
         self.nonlinear = nn.LayerChoice([nn.Identity(), nn.Hardswish()])
         # self.nonlinear = nn.ModuleList([nn.Identity(), nn.Hardswish()])
         # self.beta = nn.Parameter(torch.rand(2))
+        self.sensitivity = [0 for _ in self.SAMPLE_OPS]
 
     def forward(self, x: Tensor) -> Tensor:
         out = []
         for idx, _ in enumerate(self.paths):
             out.append(self.paths[idx](x))
+            tmp = F.relu(out[-1])
+            self.sensitivity[idx] += torch.count_nonzero(tmp)/tmp.numel()
         out = self.input_switch(out) 
         out = self.nonlinear(out)    
         # out = self.nonlinear[0](out) * self.beta[0] + self.nonlinear[1](out) * self.beta[1] 
