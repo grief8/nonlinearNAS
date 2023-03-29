@@ -7,6 +7,7 @@ from utils.tools import *
 from nas.proxylessnas import _get_module_with_type
 from exp.cifar_resnet import resnet18_in, LearnableAlpha
 from utils.config import hardware
+import utils.datasets as datasets
 
 
 def analyze_arch(args, hardware):
@@ -94,6 +95,7 @@ if __name__ == '__main__':
     parser.add_argument("--pretrained", default=False, action="store_true")
     parser.add_argument('--dataset', default='imagenet', type=str, help='dataset type',
                         choices=['imagenet', 'cifar100'])
+    parser.add_argument("--data_path", default='/home/lifabing/data/imagenet/', type=str)
     parser.add_argument("--strategy", default='latency', type=str, choices=['latency', 'throughput'])
     parser.add_argument('--grad_reg_loss_type', default='add#linear', type=str,
                         choices=['add#linear', 'mul#log', 'raw'])
@@ -103,9 +105,55 @@ if __name__ == '__main__':
     parser.add_argument('--stride', type=int, default=1, help='conv1 stride')
     parser.add_argument("--choice", default='', type=str)
 
+    parser.add_argument("--worker_id", default='0', type=str)
+    parser.add_argument("--epochs", default=120, type=int)
+    parser.add_argument("--train_batch_size", default=48, type=int)
+    parser.add_argument("--test_batch_size", default=1024, type=int)
+    parser.add_argument("--n_worker", default=16, type=int)
+    parser.add_argument("--resize_scale", default=0.08, type=float)
+    parser.add_argument("--distort_color", default='normal', type=str, choices=['normal', 'strong', 'None'])
+    # configurations for training mode
+    parser.add_argument("--train_mode", default='search', type=str, choices=['search', 'retrain'])
+    # configurations for search
+    parser.add_argument("--no-warmup", dest='warmup', action='store_false')
+    parser.add_argument("--threshold", default=0.5, type=float)
+    parser.add_argument("--ref_latency", default=50000, type=float)
+    # configurations for retrain
+    parser.add_argument("--kd_teacher_path", default=None, type=str)
+
     args = parser.parse_args()
 
-    if args.choice == 'ours':
+    if args.choice == 'sensitivity':
+        with fixed_arch(args.exported_arch_path):
+            model = get_nas_network(args)
+            model.load_state_dict(torch.load(args.exported_arch_path.rstrip('.json') + '.pth'))
+            if args.dataset == 'imagenet':
+                data_provider = datasets.ImagenetDataProvider(save_path=args.data_path,
+                                                            train_batch_size=args.train_batch_size,
+                                                            test_batch_size=args.test_batch_size,
+                                                            valid_size=None,
+                                                            n_worker=args.n_worker,
+                                                            resize_scale=args.resize_scale,
+                                                            distort_color=args.distort_color)
+            elif args.dataset == 'cifar100':
+                data_provider = datasets.CIFAR100DataProvider(save_path=args.data_path,
+                                                            train_batch_size=args.train_batch_size,
+                                                            test_batch_size=args.test_batch_size,
+                                                            valid_size=None,
+                                                            n_worker=args.n_worker,
+                                                            resize_scale=args.resize_scale,
+                                                            distort_color=args.distort_color)
+            else:
+                print('Failed to create data provider !')
+                sys.exit(1)
+            
+            train_loader =  torch.utils.data.DataLoader(data_provider.train.dataset, batch_size=2)
+            for step, (trn_X, trn_y) in enumerate(train_loader):
+                print(model_sensitivity(model, trn_X))
+                import sys
+                sys.exit(0)
+
+    elif args.choice == 'ours':
         # ours
         from models.supermodel import supermodel16
         model = supermodel16()

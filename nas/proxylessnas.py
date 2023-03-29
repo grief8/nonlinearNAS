@@ -15,7 +15,7 @@ from nni.retiarii.oneshot.interface import BaseOneShotTrainer
 from nni.retiarii.oneshot.pytorch.utils import AverageMeterGroup, replace_layer_choice, replace_input_choice, to_device
 
 from nas.estimator import NonlinearLatencyEstimator, _get_module_with_type
-from utils.tools import get_relu_count
+from utils.tools import get_relu_count, model_sensitivity
 
 _logger = logging.getLogger(__name__)
 torch.autograd.set_detect_anomaly(True)
@@ -433,6 +433,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
                 result[name] = torch.where(greater_than_threshold)[0].tolist()
         return result
 
+    @torch.no_grad()
     def export_top(self, topk_layer=1, topk_block=1):
         result = dict()
         for name, module in self.nas_modules:
@@ -448,3 +449,13 @@ class ProxylessTrainer(BaseOneShotTrainer):
                     else:
                         result[name] = choices[:topk_block]
         return result
+
+    def export_sensitivity(self):
+        # from nni.retiarii.oneshot.pytorch.utils import _replace_module_with_type
+        # _replace_module_with_type(self.model, nn.ReLU, ProxylessLayerChoice, [])
+        # print(self.model)
+        for step, (trn_X, trn_y) in enumerate(self.train_loader):
+            trn_X, trn_y = to_device(trn_X, self.device), to_device(trn_y, self.device)
+            print(model_sensitivity(self.model, trn_X))
+            import sys
+            sys.exit(0)

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from functools import reduce
 from collections import OrderedDict
@@ -280,3 +281,44 @@ def get_relu_count(model, input_size, batch_size=-1, device="cuda", ops=None):
         if nonlinear_flag:
             total += abs(reduce(lambda x, y: x * y, summary[layer]["output_shape"]))
     return total
+
+
+def model_sensitivity(model, data, device="cuda"):
+    def register_hook(module):
+
+        def hook(module, input, output):
+            class_name = str(module.__class__)
+            if 'samplelayer' in class_name and 'paths' in class_name:
+                output = F.relu(output)
+                summary[class_name] = torch.count_nonzero(output)/output.numel()
+
+        hooks.append(module.register_forward_hook(hook))
+
+    device = device.lower()
+    assert device in [
+        "cuda",
+        "cpu",
+    ], "Input device is not valid, please specify 'cuda' or 'cpu'"
+
+    if device == "cuda" and torch.cuda.is_available():
+        model.to(device)
+        dtype = torch.cuda.FloatTensor
+    else:
+        dtype = torch.FloatTensor
+    data = torch.rand(2, 3, 32, 32).type(dtype)
+    # create properties
+    summary = OrderedDict()
+    hooks = []
+
+    # register hook
+    model.apply(register_hook)
+
+    # make a forward pass
+    # print(x.shape)
+    model(data)
+
+    # remove these hooks
+    for h in hooks:
+        h.remove()
+
+    return summary
