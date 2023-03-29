@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import copy
 import torch
 from torch import Tensor
 import torch.nn.functional as F
@@ -58,8 +59,10 @@ class _SampleLayer(nn.Module):
         out = []
         for idx, _ in enumerate(self.paths):
             out.append(self.paths[idx](x))
-            tmp = F.relu(out[-1])
-            self.sensitivity[idx] += torch.count_nonzero(tmp)/tmp.numel()
+            tmp = copy.copy(out[-1])
+            tmp = F.relu(tmp)
+            self.sensitivity[idx] += (torch.count_nonzero(tmp) / tmp.numel()).item()
+            del tmp
         out = self.input_switch(out) 
         out = self.nonlinear(out)    
         # out = self.nonlinear[0](out) * self.beta[0] + self.nonlinear[1](out) * self.beta[1] 
