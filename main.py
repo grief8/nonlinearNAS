@@ -167,9 +167,10 @@ if __name__ == "__main__":
                                    checkpoint_path=args.exported_arch_path,
                                    ref_latency=args.ref_latency,
                                    teacher=teacher)
-        trainer.fit()
+        # trainer.fit()
         print('Final architecture:', trainer.export())
         json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
+        trainer.export_sensitivity()
         json.dump(trainer.export_top(topk_layer=-1, topk_block=1), open(args.exported_arch_path.rstrip('.json') + '_layer-1_block1.json', 'w'))
         # json.dump(trainer.export_avg(), open(args.exported_arch_path.rstrip('.json') + '_avg.json', 'w'))
         # topks = [1, 2, 4, 6, 8, -1]
