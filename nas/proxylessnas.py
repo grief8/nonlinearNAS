@@ -451,11 +451,10 @@ class ProxylessTrainer(BaseOneShotTrainer):
         return result
 
     def export_sensitivity(self):
-        # from nni.retiarii.oneshot.pytorch.utils import _replace_module_with_type
-        # _replace_module_with_type(self.model, nn.ReLU, ProxylessLayerChoice, [])
-        # print(self.model)
-        for step, (trn_X, trn_y) in enumerate(self.train_loader):
-            trn_X, trn_y = to_device(trn_X, self.device), to_device(trn_y, self.device)
-            print(model_sensitivity(self.model, trn_X))
-            import sys
-            sys.exit(0)
+        from models.supermodel import _SampleLayer
+        modules = _get_module_with_type(self.model, _SampleLayer, [])
+        for module in modules:
+            print(module.sensitivity)
+        for name, module in self.darts_modules:
+            
+            print(F.softmax(module.alpha, dim=-1))
