@@ -42,7 +42,7 @@ function run_proxylessnas() {
   strategy=$5
   batch=$6
   echo start "${model}" "${lossType}" "$wid" "${strategy}"
-  dir=./checkpoints/oneshot/"${model}"/"${strategy}"/"${lossType}"
+  dir=./checkpoints/branch/"${model}"/"${strategy}"/"${lossType}"
   #  search
   mkdir -p "${dir}"
   python main.py  \
@@ -52,7 +52,7 @@ function run_proxylessnas() {
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
   --pretrained \
-  --epochs 50 \
+  --epochs 100 \
   --train_batch_size "${batch}" \
   --checkpoint_path "${dir}"/arch_path.pt \
   --exported_arch_path "${dir}"/checkpoint2.json \
@@ -66,4 +66,4 @@ function run_proxylessnas() {
 #done;
 #run_proxylessnas "$1" add#linear 0  "$2" "$3" &
 #run_proxylessnas "$1" mul#log 0 "$2" "$3"
-run_proxylessnas "$1" add#linear 0 "$2" "$3" "$4"
+run_proxylessnas "$1" add#linear 0,1,2,3,4,5,6,7 "$2" "$3" "$4"

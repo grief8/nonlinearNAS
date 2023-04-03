@@ -6,6 +6,7 @@ import nni.nas.nn.pytorch as nn
 from typing import Tuple, Type, Any, Callable, Union, List, Optional
 from models.ops import OPS, DropPath_
 from nni.nas import model_wrapper
+import copy
 
 
 class Swish(nn.Module):
@@ -41,9 +42,11 @@ class _SampleLayer(nn.Module):
     def __init__(
             self,
             inplanes: int,
-            label: str
+            label: str,
+            clamp=True
     ) -> None:
         super(_SampleLayer, self).__init__()
+        self.clamp = clamp
         # extract feature from low dimension
         self.paths = nn.ModuleList([nn.Sequential(OPS[op](inplanes, 1, True), DropPath_()) for op in self.SAMPLE_OPS])
         # self.paths = nn.LayerChoice([OPS[op](inplanes, 1, True) for op in self.SAMPLE_OPS])
@@ -55,7 +58,10 @@ class _SampleLayer(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         # weights = F.softmax(self.alpha, dim=-1)
-        weights = self.alpha
+        if self.clamp:
+            weights = self.alpha.clone().clamp(0, 1)
+        else:
+            weights = self.alpha.clone()
         out = None
         for idx, _ in enumerate(self.paths):
             if out is None:
