@@ -46,7 +46,11 @@ class Retrain:
         self.n_epochs = n_epochs
         self.criterion = nn.CrossEntropyLoss()
         # change it while training
-        self.export_path = export_path
+        # print relu_count
+        print('The input data shape is: ', self.data_shape)
+        count = get_relu_count(self.model, self.data_shape)
+        print('The relu count of current model is: ', count)
+        self.export_path = export_path.rstrip('.pth') + '-' + str(count) + '.pth'
         if os.path.exists(export_path):
             st = torch.load(export_path)
             model.load_state_dict(st)
@@ -57,10 +61,6 @@ class Retrain:
         self.soft_loss = nn.KLDivLoss(reduction='batchmean')
 
     def run(self):
-        # print relu_count
-        print('The input data shape is: ', self.data_shape)
-        print('The relu count of current model is: ', get_relu_count(self.model, self.data_shape))
-
         self.model = torch.nn.DataParallel(self.model)
         self.model.to(self.device)
         if self.teacher is not None:
