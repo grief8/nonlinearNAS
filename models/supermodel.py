@@ -56,6 +56,16 @@ class _SampleLayer(nn.Module):
         # self.nonlinear = nn.ModuleList([nn.Identity(), nn.Hardswish()])
         # self.beta = nn.Parameter(torch.rand(2))
 
+    def freeze(self, topk=1):
+        _, indices = torch.topk(self.alpha, topk)
+        y = torch.zeros_like(self.alpha)
+        y[indices] = 1
+        self.alpha = nn.Parameter(y)
+        self.alpha.requires_grad_(False)
+
+    def reset_clamp(self, clamp):
+        self.clamp = clamp
+
     def forward(self, x: Tensor) -> Tensor:
         # weights = F.softmax(self.alpha, dim=-1)
         if self.clamp:

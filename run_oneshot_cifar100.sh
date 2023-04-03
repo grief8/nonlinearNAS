@@ -41,6 +41,7 @@ function run_proxylessnas() {
   wid=$3
   strategy=$5
   batch=$6
+  extra_args=$7
   echo start "${model}" "${lossType}" "$wid" "${strategy}"
   dir=./checkpoints/branch/"${model}"/"${strategy}"/"${lossType}"
   #  search
@@ -58,7 +59,9 @@ function run_proxylessnas() {
   --exported_arch_path "${dir}"/checkpoint2.json \
   --train_mode "$4" \
   --strategy "$strategy" \
-  --kd_teacher_path ~/projects/nonlinearNAS/checkpoints/teacher/cifar_resnet152.pth
+  --kd_teacher_path ~/projects/nonlinearNAS/checkpoints/teacher/cifar_resnet152.pth \
+  "$extra_args" \
+  --branches 4
 }
 #for constraint in 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0;
 #do
@@ -66,4 +69,4 @@ function run_proxylessnas() {
 #done;
 #run_proxylessnas "$1" add#linear 0  "$2" "$3" &
 #run_proxylessnas "$1" mul#log 0 "$2" "$3"
-run_proxylessnas "$1" add#linear 0,1,2,3,4,5,6,7 "$2" "$3" "$4"
+run_proxylessnas "$1" add#linear 0,1,2,3,4,5,6,7 "$2" "$3" "$4" "$5"

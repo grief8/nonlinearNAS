@@ -61,6 +61,10 @@ if __name__ == "__main__":
     # configurations for retrain
     parser.add_argument("--exported_arch_path", default='./checkpoints/resnet18/checkpoint.json', type=str)
     parser.add_argument("--kd_teacher_path", default=None, type=str)
+    # branch pruning
+    parser.add_argument("--std_pruning", default=False, action="store_true")
+    parser.add_argument("--clamp", default=False, action="store_true")
+    parser.add_argument("--branches", default=4, type=int)
 
     args = parser.parse_args()
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -76,45 +80,19 @@ if __name__ == "__main__":
             "exported_arch_path {} should be a file.".format(args.exported_arch_path)
         with fixed_arch(args.exported_arch_path):
             model = get_nas_network(args)
-            # model.load_state_dict(torch.load(args.exported_arch_path))
-            # reproduce_model(model, threshold=args.threshold )
-            # model = ShuffleNetV2OneShot()
-            # model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
-            #                         n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
-            #                         stride_stages=[int(i) for i in args.stride_stages.split(',')],
-            #                         n_classes=1000,
-            #                         dropout_rate=args.dropout_rate,
-            #                         bn_param=(args.bn_momentum, args.bn_eps))
+            with open(args.exported_arch_path.rstrip('.json') + '.o', 'rb') as f:
+                st = pickle.load(f)
+                model.load_state_dict(st, strict=False)
+                print('std_pruning: {}, clamp: {}'.format(args.std_pruning, args.clamp))
+                from models.supermodel import _SampleLayer
+                for _, module in model.named_modules():
+                    if isinstance(module, _SampleLayer):
+                        if args.std_pruning:
+                            module.freeze(args.branches)
+                        else:
+                            module.reset_clamp(args.clamp)
     else:
         model = get_nas_network(args)
-        # model = ShuffleNetV2OneShot(input_size=32, n_classes=100)
-        # model = SearchMobileNet(width_stages=[int(i) for i in args.width_stages.split(',')],
-        #                         n_cell_stages=[int(i) for i in args.n_cell_stages.split(',')],
-        #                         stride_stages=[int(i) for i in args.stride_stages.split(',')],
-        #                         n_classes=1000,
-        #                         dropout_rate=args.dropout_rate,
-        #                         bn_param=(args.bn_momentum, args.bn_eps))
-        # logger.info('SearchMobileNet model create done')
-        # model.init_model()
-        # logger.info('SearchMobileNet model init done')
-
-    # if os.path.exists(args.exported_arch_path.rstrip('.json') + '.pth'):
-    #     st = torch.load(args.exported_arch_path.rstrip('.json') + '.pth')
-    #     model.load_state_dict(st)
-    # non_ops = _get_module_with_type(model, [nn.PReLU], [])
-    # for module in non_ops:
-    #     ones = torch.ones_like(module.weight)
-    #     zeros = torch.zeros_like(module.weight)
-    #     module.weight = torch.nn.Parameter(torch.where(module.weight <= 0.5, zeros, ones), requires_grad=False)
-    # relu_count = []
-    # for module in non_ops:
-    #     relu_count.append(float(torch.sum(module.weight)))
-    # applied_hardware = {'PReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
-    #                     'communication': 2.0, 'LayerChoice': 0.0}
-    # latency_estimator = NonlinearLatencyEstimator(applied_hardware, model, (1, 3, 32, 32),
-    #                                               target='throughput')
-    # print(args.grad_reg_loss_type, args.strategy, latency_estimator.cal_expected_latency([], relu_count=relu_count))
-    # sys.exit(1)
 
     # move network to GPU if available
     if torch.cuda.is_available():
@@ -207,7 +185,11 @@ if __name__ == "__main__":
     elif args.train_mode == 'retrain':
         # this is retrain
         print('this is retrain')
+        if args.std_pruning:
+            export_path = args.exported_arch_path.rstrip('.json') + '-std_pruning-{}.pth'.format(args.branches)
+        else:
+            export_path = args.exported_arch_path.rstrip('.json') + '-clamp-{}.pth'.format(args.clamp)
         trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
-                            export_path=args.exported_arch_path.rstrip('.json') + '.pth',
+                            export_path=export_path,
                             teacher=teacher)
         trainer.run()
