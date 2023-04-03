@@ -51,9 +51,9 @@ class Retrain:
         count = get_relu_count(self.model, self.data_shape)
         print('The relu count of current model is: ', count)
         self.export_path = export_path.rstrip('.pth') + '-' + str(count) + '.pth'
-        if os.path.exists(export_path):
-            st = torch.load(export_path)
-            model.load_state_dict(st)
+        # if os.path.exists(export_path):
+        #     st = torch.load(export_path)
+        #     model.load_state_dict(st)
         # knowledge distillation
         self.teacher = teacher
         self.temp = 4
@@ -120,7 +120,7 @@ class Retrain:
 
             if i % 10 == 0 or i + 1 == len(self.train_loader):
                 batch_log = train_log_func(i, batch_time, data_time, losses, top1, top5, new_lr)
-                print(batch_log)
+                # print(batch_log)
         return top1, top5
 
     def train(self, validation_frequency=5):
@@ -151,7 +151,7 @@ class Retrain:
             return new_lr
 
         for epoch in range(self.n_epochs):
-            print('\n', '-' * 30, 'Train epoch: %d' % (epoch + 1), '-' * 30, '\n')
+            # print('\n', '-' * 30, 'Train epoch: %d' % (epoch + 1), '-' * 30, '\n')
             end = time.time()
             train_top1, train_top5 = self.train_one_epoch(
                 lambda i: adjust_learning_rate(self.n_epochs, self.optimizer, epoch, i, nBatch),
@@ -160,9 +160,9 @@ class Retrain:
             )
             time_per_epoch = time.time() - end
             seconds_left = int((self.n_epochs - epoch - 1) * time_per_epoch)
-            print('Time per epoch: %s, Est. complete in: %s' % (
-                str(timedelta(seconds=time_per_epoch)),
-                str(timedelta(seconds=seconds_left))))
+            # print('Time per epoch: %s, Est. complete in: %s' % (
+            #     str(timedelta(seconds=time_per_epoch)),
+            #     str(timedelta(seconds=seconds_left))))
 
             if (epoch + 1) % validation_frequency == 0:
                 val_loss, val_acc, val_acc5 = self.validate(is_test=False)
@@ -172,7 +172,7 @@ class Retrain:
                     format(epoch + 1, self.n_epochs, val_loss, val_acc, best_acc)
                 val_log += '\ttop-5 acc {0:.3f}\tTrain top-1 {top1.avg:.3f}\ttop-5 {top5.avg:.3f}'.\
                     format(val_acc5, top1=train_top1, top5=train_top5)
-                print(val_log)
+                # print(val_log)
             else:
                 is_best = False
             if is_best:
