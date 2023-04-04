@@ -81,8 +81,12 @@ if __name__ == "__main__":
         with fixed_arch(args.exported_arch_path):
             model = get_nas_network(args)
             with open(args.exported_arch_path.rstrip('.json') + '.o', 'rb') as f:
-                st = pickle.load(f)
-                model.load_state_dict(st, strict=False)
+                state_dict = pickle.load(f)
+                new_state_dict = {}
+                for k, v in state_dict.items():
+                    if 'samplelayer' in k and 'alpha' in k:
+                        new_state_dict[k] = v
+                model.load_state_dict(new_state_dict, strict=False)
                 print('std_pruning: {}, clamp: {}'.format(args.std_pruning, args.clamp))
                 from models.supermodel import _SampleLayer
                 for _, module in model.named_modules():
