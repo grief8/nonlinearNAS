@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 import nni.retiarii.nn.pytorch as nn
 from typing import Type, Any, Callable, Union, List, Optional
@@ -90,7 +91,7 @@ class SampleBlock(torch.nn.ModuleDict):
         for name, layer in self.items():
             new_features = layer(features)
             features.append(new_features)
-        return torch.cat(features, 1)
+        return F.relu(torch.cat(features, 1)) 
 
 
 class AggregateBlock(nn.Module):
@@ -98,9 +99,6 @@ class AggregateBlock(nn.Module):
             self,
             inplanes: list,
             outplanes: int,
-            kernel_size: int = 1,
-            stride: int = 1,
-            groups: int = 1,
             norm_layer: Optional[Callable[..., nn.Module]] = None
     ) -> None:
         super(AggregateBlock, self).__init__()
@@ -108,40 +106,34 @@ class AggregateBlock(nn.Module):
             norm_layer = nn.BatchNorm2d
 
         self.layers = nn.ModuleList()
-        compensation = stride
+        compensation = 1
         config = inplanes[:]
         config.reverse()
         for idx, inp in enumerate(config):
             self.layers.insert(0, nn.Sequential(
-                nn.Conv2d(inp, 4 * outplanes, kernel_size=kernel_size, stride=compensation,
-                          groups=groups, bias=False),
-                norm_layer(4 * outplanes)
+                nn.Conv2d(inp, outplanes, kernel_size=1, stride=compensation, bias=False),
+                norm_layer(outplanes)
             ))
-            # self.layers.append(nn.Sequential(
-            #     nn.Conv2d(inp, 4 * outplanes, kernel_size=kernel_size, stride=compensation,
-            #               groups=groups, bias=False),
-            #     norm_layer(4 * outplanes)
-            # ))
             compensation = 2 ** (idx)
-        self.transition = nn.Sequential(
-            nn.Conv2d(4 * outplanes, outplanes, kernel_size=3, stride=2,
-                      padding=1, groups=groups, bias=False),
-            norm_layer(outplanes),
-            nn.ReLU(),
+        self.nonlinear = nn.Sequential(
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Hardswish(inplace=True)
         )
+        self.alpha = nn.Parameter(torch.rand(len(self.layers)) * 1E-3)
 
     def forward(self, x: List) -> Tensor:
+        # weights = F.softmax(self.alpha, dim=-1)
+        weights = self.alpha
         out = None
         for idx, _ in enumerate(self.layers):
-            # print(x[idx].shape)
             if out is None:
-                out = self.layers[idx](x[idx])
+                out = self.layers[idx](x[idx]) * weights[idx]
             else:
-                out += self.layers[idx](x[idx])
+                out = out + self.layers[idx](x[idx]) * weights[idx]
 
-        out = self.transition(out)
+        out = self.nonlinear(out)
         return out
-
+    
 
 class _SampleLayer(nn.Module):
     def __init__(
@@ -159,7 +151,6 @@ class _SampleLayer(nn.Module):
             nn.Conv2d(inplanes, growth_rate, kernel_size=3, stride=1,
                       padding=1, groups=groups, bias=False),
             norm_layer(growth_rate),
-            nn.ReLU(),
         )
 
     def forward(self, x: List[Tensor]) -> Tensor:
