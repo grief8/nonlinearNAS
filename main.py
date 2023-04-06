@@ -193,6 +193,7 @@ if __name__ == "__main__":
             export_path = args.exported_arch_path.rstrip('.json') + '-std_pruning-{}.pth'.format(args.branches)
         else:
             export_path = args.exported_arch_path.rstrip('.json') + '-clamp-{}.pth'.format(args.clamp)
+        print(export_path)
         trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
                             export_path=export_path,
                             teacher=teacher)
