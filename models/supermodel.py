@@ -60,6 +60,7 @@ class _SampleLayer(nn.Module):
         _, indices = torch.topk(self.alpha, topk)
         y = torch.zeros_like(self.alpha)
         y[indices] = 1
+        print(y)
         self.alpha = nn.Parameter(y)
         self.alpha.requires_grad_(False)
 
