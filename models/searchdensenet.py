@@ -1,314 +1,129 @@
-from collections import OrderedDict
+"""dense net in pytorch
+
+
+
+[1] Gao Huang, Zhuang Liu, Laurens van der Maaten, Kilian Q. Weinberger.
+
+    Densely Connected Convolutional Networks
+    https://arxiv.org/abs/1608.06993v5
+"""
 
 import torch
-import torch.nn as tnn
-import torch.nn.functional as F
-from torch import Tensor
-import nni.retiarii.nn.pytorch as nn
-from typing import Type, Any, Callable, Union, List, Optional, Tuple
-
-from models.sim_ops import *
+import torch.nn as nn
 
 
+
+#"""Bottleneck layers. Although each layer only produces k
+#output feature-maps, it typically has many more inputs. It
+#has been noted in [37, 11] that a 1×1 convolution can be in-
+#troduced as bottleneck layer before each 3×3 convolution
+#to reduce the number of input feature-maps, and thus to
+#improve computational efficiency."""
+class Bottleneck(nn.Module):
+    def __init__(self, in_channels, growth_rate):
+        super().__init__()
+        #"""In  our experiments, we let each 1×1 convolution
+        #produce 4k feature-maps."""
+        inner_channel = 4 * growth_rate
+
+        #"""We find this design especially effective for DenseNet and
+        #we refer to our network with such a bottleneck layer, i.e.,
+        #to the BN-ReLU-Conv(1×1)-BN-ReLU-Conv(3×3) version of H ` ,
+        #as DenseNet-B."""
+        self.bottle_neck = nn.Sequential(
+            nn.BatchNorm2d(in_channels),
+            nn.Conv2d(in_channels, inner_channel, kernel_size=1, bias=False),
+            nn.BatchNorm2d(inner_channel),
+            nn.Conv2d(inner_channel, growth_rate, kernel_size=3, padding=1, bias=False)
+        )
+
+    def forward(self, x):
+        return torch.cat([x, self.bottle_neck(x)], 1)
+
+#"""We refer to layers between blocks as transition
+#layers, which do convolution and pooling."""
+class Transition(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        #"""The transition layers used in our experiments
+        #consist of a batch normalization layer and an 1×1
+        #convolutional layer followed by a 2×2 average pooling
+        #layer""".
+        self.down_sample = nn.Sequential(
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(in_channels),
+            nn.Conv2d(in_channels, out_channels, 1, bias=False),
+            nn.AvgPool2d(2, stride=2)
+        )
+
+    def forward(self, x):
+        return self.down_sample(x)
+
+#DesneNet-BC
+#B stands for bottleneck layer(BN-RELU-CONV(1x1)-BN-RELU-CONV(3x3))
+#C stands for compression factor(0<=theta<=1)
 class DenseNet(nn.Module):
-    def __init__(
-        self,
-        growth_rate: int = 32,
-        num_init_features: int = 64,
-        block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
-        num_classes: int = 1000
-    ) -> None:
+    def __init__(self, block, nblocks, growth_rate=12, reduction=0.5, num_class=100):
+        super().__init__()
+        self.growth_rate = growth_rate
 
-        super(DenseNet, self).__init__()
+        #"""Before entering the first dense block, a convolution
+        #with 16 (or twice the growth rate for DenseNet-BC)
+        #output channels is performed on the input images."""
+        inner_channels = 2 * growth_rate
 
-        # First convolution
-        self.features = nn.Sequential(OrderedDict([
-            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
-                                padding=3, bias=False)),
-            ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.ReLU(inplace=True)),
-            ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
-        ]))
+        #For convolutional layers with kernel size 3×3, each
+        #side of the inputs is zero-padded by one pixel to keep
+        #the feature-map size fixed.
+        self.conv1 = nn.Conv2d(3, inner_channels, kernel_size=3, padding=1, bias=False)
 
-        self.samples = nn.ModuleList()
-        self.aggeregate = nn.ModuleList()
-        channels = [num_init_features]
-        num_features = num_init_features
-        for i, num_layers in enumerate(block_config):
-            block = []
-            block = SampleBlock(
-                num_layers=num_layers,
-                num_input_features=num_features,
-                growth_rate=growth_rate
-            )
-            self.samples.append(block)
-            # self.features.add_module('sampleblock%d' % (i + 1), block)
-            num_features = num_features + num_layers * growth_rate
-            if i != len(block_config) - 1:
-                channels.append(num_features)
-                # print('channels: ', channels)
-                trans = AggregateBlock(inplanes=channels,
-                                    outplanes=num_features // 2)
-                # self.features.add_module('aggregate%d' % (i + 1), trans)
-                self.aggeregate.append(trans)
-                num_features = num_features // 2
-                channels[-1] = num_features
-        
-        # Linear layer
-        self.classifier = nn.Linear(num_init_features * 16, num_classes)
+        self.features = nn.Sequential()
 
-        # Official init from torch repo.
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                tnn.init.kaiming_normal_(m.weight)
-            elif isinstance(m, nn.BatchNorm2d):
-                tnn.init.constant_(m.weight, 1)
-                tnn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                tnn.init.constant_(m.bias, 0)
+        for index in range(len(nblocks) - 1):
+            self.features.add_module("dense_block_layer_{}".format(index), self._make_dense_layers(block, inner_channels, nblocks[index]))
+            inner_channels += growth_rate * nblocks[index]
 
-    def forward(self, x: Tensor) -> Tensor:
-        features = [self.features(x)]
-        for idx in range(len(self.aggeregate)):
-            # print(idx)
-            features.append(self.samples[idx](features[-1]))
-            # print(len(features))
-            # print(features[-1].shape)
-            features[-1] = self.aggeregate[idx](features)
-        out = self.samples[-1](features[-1])
+            #"""If a dense block contains m feature-maps, we let the
+            #following transition layer generate θm output feature-
+            #maps, where 0 < θ ≤ 1 is referred to as the compression
+            #fac-tor.
+            out_channels = int(reduction * inner_channels) # int() will automatic floor the value
+            self.features.add_module("transition_layer_{}".format(index), Transition(inner_channels, out_channels))
+            inner_channels = out_channels
 
-        out = F.adaptive_avg_pool2d(out, (1, 1))
-        out = torch.flatten(out, 1)
-        out = self.classifier(out)
-        return out
+        self.features.add_module("dense_block{}".format(len(nblocks) - 1), self._make_dense_layers(block, inner_channels, nblocks[len(nblocks)-1]))
+        inner_channels += growth_rate * nblocks[len(nblocks) - 1]
+        self.features.add_module('bn', nn.BatchNorm2d(inner_channels))
+        self.features.add_module('relu', nn.ReLU(inplace=True))
 
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
-class CifarDenseNet(nn.Module):
-    def __init__(
-        self,
-        growth_rate: int = 32,
-        num_init_features: int = 64,
-        block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
-        num_classes: int = 1000
-    ) -> None:
+        self.linear = nn.Linear(inner_channels, num_class)
 
-        super(CifarDenseNet, self).__init__()
+    def forward(self, x):
+        output = self.conv1(x)
+        output = self.features(output)
+        output = self.avgpool(output)
+        output = output.view(output.size()[0], -1)
+        output = self.linear(output)
+        return output
 
-        # First convolution
-        self.features = nn.Sequential(OrderedDict([
-            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
-                                padding=1, bias=False)),
-            ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.ReLU(inplace=True))
-        ]))
+    def _make_dense_layers(self, block, in_channels, nblocks):
+        dense_block = nn.Sequential()
+        for index in range(nblocks):
+            dense_block.add_module('bottle_neck_layer_{}'.format(index), block(in_channels, self.growth_rate))
+            in_channels += self.growth_rate
+        return dense_block
 
-        self.samples = nn.ModuleList()
-        self.aggeregate = nn.ModuleList()
-        channels = [num_init_features]
-        num_features = num_init_features
-        for i, num_layers in enumerate(block_config):
-            block = SampleBlock(
-                num_layers=num_layers,
-                num_input_features=num_features,
-                growth_rate=growth_rate
-            )
-            self.samples.append(block)
-            num_features = num_features + num_layers * growth_rate
-            if i != len(block_config) - 1:
-                channels.append(num_features)
-                trans = AggregateBlock(inplanes=channels,
-                                    outplanes=num_features // 2)
-                self.aggeregate.append(trans)
-                num_features = num_features // 2
-                channels[-1] = num_features
-        
-        # Linear layer
-        self.classifier = nn.Linear(num_features, num_classes)
+def densenet121(**kwargs):
+    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=32)
 
-        # Official init from torch repo.
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                tnn.init.kaiming_normal_(m.weight)
-            elif isinstance(m, nn.BatchNorm2d):
-                tnn.init.constant_(m.weight, 1)
-                tnn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                tnn.init.constant_(m.bias, 0)
+def densenet169(**kwargs):
+    return DenseNet(Bottleneck, [6,12,32,32], growth_rate=32)
 
-    def forward(self, x: Tensor) -> Tensor:
-        features = [self.features(x)]
-        for idx in range(len(self.aggeregate)):
-            features.append(self.samples[idx](features[-1]))
-            features[-1] = self.aggeregate[idx](features)
-        out = self.samples[-1](features[-1])
+def densenet201(**kwargs):
+    return DenseNet(Bottleneck, [6,12,48,32], growth_rate=32)
 
-        out = F.adaptive_avg_pool2d(out, (1, 1))
-        out = torch.flatten(out, 1)
-        out = self.classifier(out)
-        return out
+def densenet161(**kwargs):
+    return DenseNet(Bottleneck, [6,12,36,24], growth_rate=48)
 
-
-class SearchDenseNet(nn.Module):
-    def __init__(
-        self,
-        growth_rate: int = 32,
-        num_init_features: int = 64,
-        block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
-        num_classes: int = 1000
-    ) -> None:
-
-        super(SearchDenseNet, self).__init__()
-
-        # First convolution
-        self.features = nn.Sequential(OrderedDict([
-            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
-                                padding=3, bias=False)),
-            ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.ReLU(inplace=True)),
-            ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
-        ]))
-
-        self.samples = nn.ModuleList()
-        self.aggeregate = nn.ModuleList()
-        channels = [num_init_features]
-        num_features = num_init_features
-        for i, num_layers in enumerate(block_config):
-            block = SampleBlock(
-                num_layers=nn.ValueChoice([i for i in range(1, num_layers)]),
-                num_input_features=num_features,
-                growth_rate=growth_rate
-            )
-            self.samples.append(block)
-            num_features = num_features + num_layers * growth_rate
-            if i != len(block_config) - 1:
-                channels.append(num_features)
-                trans = AggregateBlock(inplanes=channels,
-                                    outplanes=num_features // 2)
-                self.aggeregate.append(trans)
-                num_features = num_features // 2
-                channels[-1] = num_features
-        
-        # Linear layer
-        self.classifier = nn.Linear(num_init_features * 16, num_classes)
-
-        # Official init from torch repo.
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                tnn.init.kaiming_normal_(m.weight)
-            elif isinstance(m, nn.BatchNorm2d):
-                tnn.init.constant_(m.weight, 1)
-                tnn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                tnn.init.constant_(m.bias, 0)
-
-    def forward(self, x: Tensor) -> Tensor:
-        features = [self.features(x)]
-        for idx in range(len(self.aggeregate)):
-            features.append(self.samples[idx](features[-1]))
-            features[-1] = self.aggeregate[idx](features)
-        out = self.samples[-1](features[-1])
-
-        out = F.adaptive_avg_pool2d(out, (1, 1))
-        out = torch.flatten(out, 1)
-        out = self.classifier(out)
-        return out
-
-
-class SearchCifarDenseNet(nn.Module):
-    def __init__(
-        self,
-        growth_rate: int = 32,
-        num_init_features: int = 64,
-        block_config: Tuple[int, int, int, int] = (6, 12, 24, 16),
-        num_classes: int = 1000
-    ) -> None:
-
-        super(SearchCifarDenseNet, self).__init__()
-
-        # First convolution
-        self.features = nn.Sequential(OrderedDict([
-            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
-                                padding=1, bias=False)),
-            ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.ReLU(inplace=True))
-        ]))
-
-        self.samples = nn.ModuleList()
-        self.aggeregate = nn.ModuleList()
-        channels = [num_init_features]
-        num_features = num_init_features
-        for i, num_layers in enumerate(block_config):
-            nv = [i for i in range(1, num_layers)]
-            blocks = [nn.Identity()]
-            # for
-            block = SampleBlock(
-                num_layers=nn.ModelParameterChoice(nv),
-                num_input_features=num_features,
-                growth_rate=growth_rate
-            )
-            self.samples.append(block)
-            num_features = num_features + num_layers * growth_rate
-            if i != len(block_config) - 1:
-                channels.append(num_features)
-                trans = AggregateBlock(inplanes=channels,
-                                    outplanes=num_features // 2)
-                self.aggeregate.append(trans)
-                num_features = num_features // 2
-                channels[-1] = num_features
-        
-        # Linear layer
-        self.classifier = nn.Linear(num_features, num_classes)
-
-        # Official init from torch repo.
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                tnn.init.kaiming_normal_(m.weight)
-            elif isinstance(m, nn.BatchNorm2d):
-                tnn.init.constant_(m.weight, 1)
-                tnn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                tnn.init.constant_(m.bias, 0)
-
-    def forward(self, x: Tensor) -> Tensor:
-        features = [self.features(x)]
-        for idx in range(len(self.aggeregate)):
-            features.append(self.samples[idx](features[-1]))
-            features[-1] = self.aggeregate[idx](features)
-        out = self.samples[-1](features[-1])
-
-        out = F.adaptive_avg_pool2d(out, (1, 1))
-        out = torch.flatten(out, 1)
-        out = self.classifier(out)
-        return out
-
-def densenet121(num_classes: int = 1000, pretrained: bool = False):
-    return DenseNet(block_config=[6,12,24,16], growth_rate=32, num_classes=num_classes)
-
-def densenet169(num_classes: int = 1000, pretrained: bool = False):
-    return DenseNet(block_config=[6,12,32,32], growth_rate=32, num_classes=num_classes)
-
-def densenet201(num_classes: int = 1000, pretrained: bool = False):
-    return DenseNet(block_config=[6,12,48,32], growth_rate=32, num_classes=num_classes)
-
-def densenet161(num_classes: int = 1000, pretrained: bool = False):
-    return DenseNet(block_config=[6,12,36,24], growth_rate=48, num_classes=num_classes)
-
-def cifardensenet121(num_classes: int = 100, pretrained: bool = False):
-    return CifarDenseNet(block_config=[6,12,24,16], growth_rate=32, num_classes=num_classes)
-
-def cifardensenet169(num_classes: int = 100, pretrained: bool = False):
-    return CifarDenseNet(block_config=[6,12,32,32], growth_rate=32, num_classes=num_classes)
-
-def cifardensenet201(num_classes: int = 100, pretrained: bool = False):
-    return CifarDenseNet(block_config=[6,12,48,32], growth_rate=32, num_classes=num_classes)
-
-def cifardensenet161(num_classes: int = 100, pretrained: bool = False):
-    return CifarDenseNet(block_config=[6,12,36,24], growth_rate=48, num_classes=num_classes)
-
-
-def searchdensenet(num_classes: int = 1000, pretrained: bool = False):
-    return SearchDenseNet(block_config=[6,12,24,16], growth_rate=32, num_classes=num_classes)
-
-
-def searchcifardensenet(num_classes: int = 100, pretrained: bool = False):
-    return SearchCifarDenseNet(block_config=[6,12,24,16], growth_rate=32, num_classes=num_classes)
