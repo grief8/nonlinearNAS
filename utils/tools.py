@@ -280,3 +280,43 @@ def get_relu_count(model, input_size, batch_size=-1, device="cuda", ops=None):
         if nonlinear_flag:
             total += abs(reduce(lambda x, y: x * y, summary[layer]["output_shape"]))
     return total
+
+
+def generate_arrays(y, a, b, value=0, index=0, cur=[]):
+    """
+    递归生成所有符合条件的数组
+    """
+    if index == len(y):
+        # print(cur)
+        if a <= value <= b:
+            yield (value, cur)
+        return
+
+    # 选择将当前位置设为0
+    if value <= b:
+        yield from generate_arrays(y, a, b, value, index + 1, cur + [0])
+
+    # 选择将当前位置设为1
+    if value <= b:
+        yield from generate_arrays(y, a, b, value + y[index], index + 1, cur + [1])
+
+
+def get_count():
+    from models.supermodel import cifarsupermodel50
+    from utils.tools import model_summary
+    sy = model_summary(cifarsupermodel50(), (3,32,32))
+    i = 0
+    count_list = []
+    for key in sy.keys():
+        if 'Identity' in key:
+            # print(sy[key]['input_shape'])
+            if i % 2 == 0:
+                count_list.append(abs(reduce(lambda x, y: x * y, sy[key]['input_shape'])))
+            i+=1
+    print(count_list)
+    a = 90000 # 价值下限
+    b = 150000 # 价值上限
+
+    filtered_arrays = [x for x in generate_arrays(count_list, a, b)] 
+
+    print(filtered_arrays) # 打印符合条件的数组
