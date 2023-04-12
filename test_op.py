@@ -171,7 +171,7 @@ if __name__ == "__main__":
     elif args.train_mode == 'retrain':
         # this is retrain
         print('this is retrain')
-        export_path = args.exported_arch_path.rstrip('.json') + 'pth'
+        export_path = args.exported_arch_path.rstrip('.json') + '.pth'
         print(export_path)
         trainer = Retrain(model, optimizer, device, data_provider, n_epochs=args.epochs,
                             export_path=export_path,

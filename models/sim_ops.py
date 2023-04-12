@@ -91,7 +91,8 @@ class SampleBlock(torch.nn.ModuleDict):
         for name, layer in self.items():
             new_features = layer(features)
             features.append(new_features)
-        return F.relu(torch.cat(features, 1)) 
+        features = torch.cat(features, 1)
+        return features
 
 
 class AggregateBlock(nn.Module):

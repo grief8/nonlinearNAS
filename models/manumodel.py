@@ -40,10 +40,12 @@ class Supermodel(nn.Module):
         num_features = num_init_features
         for i, num_layers in enumerate(block_config):
             # FIXME: Maybe unreasonable without channel adding
-            block = SampleBlock(
+            block = nn.Sequential(SampleBlock(
                 num_layers=num_layers,
                 num_input_features=num_features,
                 growth_rate=32
+                ),
+                nn.Hardswish(inplace=True)
             )
             self.samples.append(block)
             num_features = num_features + num_layers * 32
