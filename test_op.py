@@ -76,7 +76,8 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     if args.train_mode == 'retrain':
-        model = get_nas_network(args)
+        with fixed_arch(args.exported_arch_path):
+            model = get_nas_network(args)
     else:
         model = get_nas_network(args)
 
@@ -164,7 +165,7 @@ if __name__ == "__main__":
                                    checkpoint_path=args.exported_arch_path,
                                    strategy=args.strategy,
                                    teacher=teacher)
-        trainer.fit()
+        # trainer.fit()
         print('Final architecture:', trainer.export())
         json.dump(trainer.export(), open(args.exported_arch_path, 'w'))
         json.dump(trainer.export_prob(), open(args.exported_arch_path + '.prob', 'w'))

@@ -44,8 +44,7 @@ class Supermodel(nn.Module):
                 num_layers=num_layers,
                 num_input_features=num_features,
                 growth_rate=32
-                ),
-                nn.Hardswish(inplace=True)
+                )
             )
             self.samples.append(block)
             num_features = num_features + num_layers * 32

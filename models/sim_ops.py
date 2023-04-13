@@ -153,8 +153,10 @@ class _SampleLayer(nn.Module):
                       padding=1, groups=groups, bias=False),
             norm_layer(growth_rate),
         )
+        self.nonlinear = nn.LayerChoice([nn.Identity(), nn.Hardswish()])
 
     def forward(self, x: List[Tensor]) -> Tensor:
         out = torch.cat(x, 1)
         out = self.layer(out)
+        out = self.nonlinear(out)
         return out
