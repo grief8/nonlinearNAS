@@ -44,7 +44,7 @@ if __name__ == "__main__":
     parser.add_argument("--reference_latency", default=None, type=float, help='the reference latency in specified hardware')
     # configurations of imagenet dataset
     parser.add_argument('--dataset', default='imagenet', type=str, help='dataset type',
-                        choices=['imagenet', 'cifar100'])
+                        choices=['imagenet', 'cifar100', 'cifar10'])
     parser.add_argument("--data_path", default='/home/lifabing/data/imagenet/', type=str)
     parser.add_argument("--train_batch_size", default=48, type=int)
     parser.add_argument("--test_batch_size", default=1024, type=int)
@@ -115,6 +115,14 @@ if __name__ == "__main__":
                                                       distort_color=args.distort_color)
     elif args.dataset == 'cifar100':
         data_provider = datasets.CIFAR100DataProvider(save_path=args.data_path,
+                                                      train_batch_size=args.train_batch_size,
+                                                      test_batch_size=args.test_batch_size,
+                                                      valid_size=None,
+                                                      n_worker=args.n_worker,
+                                                      resize_scale=args.resize_scale,
+                                                      distort_color=args.distort_color)
+    elif args.dataset == 'cifar10':
+        data_provider = datasets.CIFAR10DataProvider(save_path=args.data_path,
                                                       train_batch_size=args.train_batch_size,
                                                       test_batch_size=args.test_batch_size,
                                                       valid_size=None,
