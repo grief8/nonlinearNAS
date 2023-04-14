@@ -42,13 +42,14 @@ function run_proxylessnas() {
   strategy=$5
   batch=$6
   extra_args=$7
+  dataset=cifar10
   echo start "${model}" "${lossType}" "$wid" "${strategy}"
-  dir=./checkpoints/branch/"${model}"/"${strategy}"/"${lossType}"
+  dir=./checkpoints/branch/"${dataset}"/"${model}"/"${strategy}"/"${lossType}"
   #  search
   mkdir -p "${dir}"
   python main.py  \
   --net "${model}" \
-  --dataset cifar100 \
+  --dataset "${dataset}" \
   --data_path ~/data/ \
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
