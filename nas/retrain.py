@@ -6,6 +6,9 @@ import torch
 from torch import nn as nn
 import torch.nn.functional as F
 from nni.retiarii.oneshot.pytorch.utils import AverageMeter
+
+from torch.utils.tensorboard import SummaryWriter
+from utils import config
 from utils.tools import get_relu_count
 
 def cross_entropy_with_label_smoothing(pred, target, label_smoothing=0.1):
@@ -51,14 +54,16 @@ class Retrain:
         count = get_relu_count(self.model, self.data_shape)
         print('The relu count of current model is: ', count)
         self.export_path = export_path.rstrip('.pth') + '-' + str(count) + '.pth'
-        # if os.path.exists(export_path):
-        #     st = torch.load(export_path)
-        #     model.load_state_dict(st)
+        if os.path.exists(export_path):
+            st = torch.load(export_path)
+            model.load_state_dict(st)
         # knowledge distillation
         self.teacher = teacher
         self.temp = 4
         self.alpha = 0.3
         self.soft_loss = nn.KLDivLoss(reduction='batchmean')
+
+        self.writer = SummaryWriter(log_dir=os.path.join(config.LOG_DIR, self.export_path, config.TIME_NOW))
 
     def run(self):
         self.model = torch.nn.DataParallel(self.model)
@@ -73,6 +78,8 @@ class Retrain:
         self.validate(is_test=False)
         # test
         self.validate(is_test=True)
+        
+        self.writer.close()
 
     def train_one_epoch(self, adjust_lr_func, train_log_func, label_smoothing=0.1):
         batch_time = AverageMeter('batch_time')
@@ -128,6 +135,8 @@ class Retrain:
         nBatch = len(self.train_loader)
 
         def train_log_func(epoch_, i, batch_time, data_time, losses, top1, top5, lr):
+                self.writer.add_scalar('Train/loss', losses.item(), epoch_ + 1)
+
                 batch_log = 'Train [{0}][{1}/{2}]\t' \
                             'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
                             'Data {data_time.val:.3f} ({data_time.avg:.3f})\t' \
@@ -173,6 +182,8 @@ class Retrain:
                 val_log += '\ttop-5 acc {0:.3f}\tTrain top-1 {top1.avg:.3f}\ttop-5 {top5.avg:.3f}'.\
                     format(val_acc5, top1=train_top1, top5=train_top5)
                 # print(val_log)
+                self.writer.add_scalar('Test/Average loss', val_loss, epoch + 1)
+                self.writer.add_scalar('Test/Accuracy', val_acc, epoch + 1)
             else:
                 is_best = False
             if is_best:
