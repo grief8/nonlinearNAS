@@ -165,7 +165,7 @@ if __name__ == "__main__":
             from models.teacher import resnet152
             teacher = resnet152()
         else:
-            print('invalid dataset')
+            print('cannot load KD model with invalid dataset')
             sys.exit(1)
         teacher.load_state_dict(torch.load(args.kd_teacher_path))
     if args.train_mode == 'search':
