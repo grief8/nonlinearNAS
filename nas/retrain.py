@@ -135,7 +135,7 @@ class Retrain:
         nBatch = len(self.train_loader)
 
         def train_log_func(epoch_, i, batch_time, data_time, losses, top1, top5, lr):
-                self.writer.add_scalar('Train/loss', losses.item(), epoch_ + 1)
+                self.writer.add_scalar('Train/loss', losses, epoch_ + 1)
 
                 batch_log = 'Train [{0}][{1}/{2}]\t' \
                             'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
