@@ -182,12 +182,15 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.checkpoint_path = checkpoint_path
 
         # knowledge distillation
-        self.teacher = torch.nn.DataParallel(teacher)
-        self.teacher.to(self.device)
-        self.teacher.eval()
-        self.temp = 4
-        self.alpha = 0.3
-        self.soft_loss = nn.KLDivLoss(reduction='batchmean')
+        if teacher is not None:
+            self.teacher = torch.nn.DataParallel(teacher)
+            self.teacher.to(self.device)
+            self.teacher.eval()
+            self.temp = 4
+            self.alpha = 0.3
+            self.soft_loss = nn.KLDivLoss(reduction='batchmean')
+        else:
+            self.teacher = None
 
         # latency predictor
         if not applied_hardware:
