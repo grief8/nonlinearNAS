@@ -43,7 +43,7 @@ class _SampleLayer(nn.Module):
             self,
             inplanes: int,
             label: str,
-            clamp=True
+            clamp=False
     ) -> None:
         super(_SampleLayer, self).__init__()
         self.clamp = clamp
