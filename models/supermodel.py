@@ -141,6 +141,18 @@ class AggregateBlock(nn.Module):
         )
         self.alpha = nn.Parameter(torch.rand(len(self.layers)) * 1E-3)
 
+    def freeze(self, topk=1):
+        if topk == -1:
+            topk = int(len(self.layers)/2)
+        elif topk > len(self.layers):
+            topk = len(self.layers) 
+        _, indices = torch.topk(self.alpha, topk)
+        y = torch.zeros_like(self.alpha)
+        y[indices] = 1
+        print(y)
+        self.alpha = nn.Parameter(y)
+        self.alpha.requires_grad_(False)
+
     def forward(self, x: List) -> Tensor:
         # weights = F.softmax(self.alpha, dim=-1)
         weights = self.alpha
