@@ -23,21 +23,42 @@ class Swish(nn.Module):
 
 
 class _SampleLayer(nn.Module):
-    SAMPLE_OPS = [
-        'skip_connect',
-        'conv_3x3',
-        'conv_1x1',
-        'sep_conv_3x3',
-        'sep_conv_5x5',
-        # 'sep_conv_7x7',
-        'dil_conv_3x3',
-        'avg_pool_3x3',
-        # 'max_pool_3x3',
-        'dil_sep_conv_3x3',
-        'conv_3x1_1x3',
-        'conv_7x1_1x7',
-        'van_conv_3x3'
-    ]
+    # SAMPLE_OPS = [
+    #     'skip_connect',
+    #     'conv_3x3',
+    #     'conv_1x1',
+    #     'sep_conv_3x3',
+    #     'sep_conv_5x5',
+    #     # 'sep_conv_7x7',
+    #     'dil_conv_3x3',
+    #     'avg_pool_3x3',
+    #     # 'max_pool_3x3',
+    #     'dil_sep_conv_3x3',
+    #     'conv_3x1_1x3',
+    #     'conv_7x1_1x7',
+    #     'van_conv_3x3'
+    # ]
+    # all ops
+    SAMPLE_OPS = ['none', 
+                  'avg_pool_2x2', 'avg_pool_3x3', 'avg_pool_5x5', 'avg_pool_7x7', 
+                  'skip_connect', 
+                  'conv_1x1', 'conv_3x3', 'conv_5x5', 'conv_7x7', 
+                  'sep_conv_3x3', 'sep_conv_5x5', 'sep_conv_7x7', 
+                  'dil_conv_3x3', 'dil_conv_5x5', 'dil_conv_7x7', 
+                  'dil_sep_conv_3x3', 'dil_sep_conv_5x5', 'dil_sep_conv_7x7', 
+                  'group_8_conv_3x3', 'group_8_conv_5x5', 'group_8_conv_7x7', 
+                  'conv_3x1_1x3', 'conv_5x1_1x5', 'conv_7x1_1x7', 
+                  'van_conv_3x3', 'van_conv_5x5', 'van_conv_7x7']
+    # simplified ops
+    # SAMPLE_OPS = ['none',
+    #               'avg_pool_3x3',
+    #               'skip_connect',
+    #               'conv_3x3',
+    #               'sep_conv_3x3',
+    #               'dil_conv_3x3',
+    #               'conv_3x1_1x3',
+    #               'group_8_conv_3x3',
+    #               'van_conv_3x3']
 
     def __init__(
             self,
