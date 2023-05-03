@@ -7,7 +7,9 @@ hardware = {'Hardswish': 3.0, 'ReLU': 3.0, 'PReLU': 3.0,
 nonlinear_ops = ['ReLU', 'PReLU', 'Hardswish', 'MaxPool']
 
 LOG_DIR = './logs/'
-
+# the format of the time
 DATE_FORMAT = '%A_%d_%B_%Y_%Hh_%Mm_%Ss'
-#time of we run the script
+# time of we run the script
 TIME_NOW = datetime.now().strftime(DATE_FORMAT)
+# the path of the log file
+LOG_FILE = LOG_DIR + TIME_NOW + '.log'

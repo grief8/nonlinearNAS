@@ -9,6 +9,7 @@ import torch
 import nni.nas.nn.pytorch as nn
 
 
+# List of supported operations
 OPS = {
     'none': lambda C, stride, affine:
         Zero(stride),
@@ -18,6 +19,8 @@ OPS = {
         nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False),
     'avg_pool_5x5': lambda C, stride, affine:
         nn.AvgPool2d(5, stride=stride, padding=2, count_include_pad=False),
+    'avg_pool_7x7': lambda C, stride, affine:
+        nn.AvgPool2d(7, stride=stride, padding=3, count_include_pad=False),
     'max_pool_2x2': lambda C, stride, affine:
         nn.MaxPool2d(2, stride=stride, padding=0),
     'max_pool_3x3': lambda C, stride, affine:
@@ -38,6 +41,16 @@ OPS = {
             nn.Conv2d(C, C, 3, stride=stride, padding=1, bias=False),
             nn.BatchNorm2d(C, affine=affine)
         ),
+    'conv_5x5': lambda C, stride, affine:
+        nn.Sequential(
+            nn.Conv2d(C, C, 5, stride=stride, padding=2, bias=False),
+            nn.BatchNorm2d(C, affine=affine)
+        ),
+    'conv_7x7': lambda C, stride, affine:
+        nn.Sequential(
+            nn.Conv2d(C, C, 7, stride=stride, padding=3, bias=False),
+            nn.BatchNorm2d(C, affine=affine)
+        ),
     'sep_conv_3x3': lambda C, stride, affine:
         SepConv(C, C, 3, stride, 1, affine=affine),
     'sep_conv_5x5': lambda C, stride, affine:
@@ -48,12 +61,40 @@ OPS = {
         DilConv(C, C, 3, stride, 2, 2, affine=affine),
     'dil_conv_5x5': lambda C, stride, affine:
         DilConv(C, C, 5, stride, 4, 2, affine=affine),
+    'dil_conv_7x7': lambda C, stride, affine:
+        DilConv(C, C, 7, stride, 6, 2, affine=affine),
     'dil_sep_conv_3x3': lambda C, stride, affine:
         DilSepConv(C, C, 3, stride, 2, 2, affine=affine),
+    'dil_sep_conv_5x5': lambda C, stride, affine:
+        DilSepConv(C, C, 5, stride, 4, 2, affine=affine),
+    'dil_sep_conv_7x7': lambda C, stride, affine:
+        DilSepConv(C, C, 7, stride, 6, 2, affine=affine),
+    # Group convolutions should be divided by channel number
+    'group_8_conv_3x3': lambda C, stride, affine:
+        nn.Sequential(
+            nn.Conv2d(C, C, 3, stride, 1, groups=8, bias=False),
+            nn.BatchNorm2d(C, affine=affine),
+        ),
+    'group_8_conv_5x5': lambda C, stride, affine:
+        nn.Sequential(
+            nn.Conv2d(C, C, 5, stride, 2, groups=8, bias=False),
+            nn.BatchNorm2d(C, affine=affine),
+        ),
+    'group_8_conv_7x7': lambda C, stride, affine:
+        nn.Sequential(
+            nn.Conv2d(C, C, 7, stride, 3, groups=8, bias=False),
+            nn.BatchNorm2d(C, affine=affine),
+        ),
     'conv_3x1_1x3': lambda C, stride, affine:
         nn.Sequential(
             nn.Conv2d(C, C, (1, 3), stride=(1, stride), padding=(0, 1), bias=False),
             nn.Conv2d(C, C, (3, 1), stride=(stride, 1), padding=(1, 0), bias=False),
+            nn.BatchNorm2d(C, affine=affine)
+        ),
+    'conv_5x1_1x5': lambda C, stride, affine:
+        nn.Sequential(
+            nn.Conv2d(C, C, (1, 5), stride=(1, stride), padding=(0, 2), bias=False),
+            nn.Conv2d(C, C, (5, 1), stride=(stride, 1), padding=(2, 0), bias=False),
             nn.BatchNorm2d(C, affine=affine)
         ),
     'conv_7x1_1x7': lambda C, stride, affine:
@@ -64,9 +105,21 @@ OPS = {
         ),
     'van_conv_3x3': lambda C, stride, affine:
         VanConv(C, C, 3, stride, 1, affine=affine),
+    'van_conv_5x5': lambda C, stride, affine:
+        VanConv(C, C, 5, stride, 2, affine=affine),
+    'van_conv_7x7': lambda C, stride, affine:
+        VanConv(C, C, 7, stride, 3, affine=affine),
 }
 
 
+class ZeroLayer(nn.Module):
+    def __init__(self):
+        super(ZeroLayer, self).__init__()
+
+    def forward(self, x):
+        return torch.zeros_like(x)
+    
+    
 class ConvBN(nn.Sequential):
 
     def __init__(self, C_in, C_out, kernel_size, stride, padding, affine=True):

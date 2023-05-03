@@ -54,9 +54,19 @@ class Retrain:
         count = get_relu_count(self.model, self.data_shape)
         print('The relu count of current model is: ', count)
         self.export_path = export_path.rstrip('.pth') + '-' + str(count) + '.pth'
-        if os.path.exists(export_path):
-            st = torch.load(export_path)
-            model.load_state_dict(st)
+        if os.path.exists(self.export_path):
+            st = torch.load(self.export_path)
+            self.model.load_state_dict(st)
+            # for k, v in st.items():
+            #     if 'samplelayer' in k and 'alpha' in k:
+            #         print(k, v)
+        # remove softmax and replace branches with low contribution with ZeroLayer
+        for _, module in self.model.named_modules():
+            from models.supermodel import _SampleLayer
+            if isinstance(module, _SampleLayer):
+                module.replace_zero_layers()
+        self.export_path += '-retrain'        
+        print('The export path is: ', self.export_path)
         # knowledge distillation
         self.teacher = teacher
         self.temp = 4
