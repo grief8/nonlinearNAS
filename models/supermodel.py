@@ -4,7 +4,7 @@ from torch import Tensor
 import torch.nn.functional as F
 import nni.nas.nn.pytorch as nn
 from typing import Tuple, Type, Any, Callable, Union, List, Optional
-from models.ops import OPS, DropPath_
+from models.ops import OPS, DropPath_, ZeroLayer
 from nni.nas import model_wrapper
 import copy
 
@@ -40,7 +40,7 @@ class _SampleLayer(nn.Module):
     # ]
     # all ops
     SAMPLE_OPS = ['none', 
-                  'avg_pool_2x2', 'avg_pool_3x3', 'avg_pool_5x5', 'avg_pool_7x7', 
+                  'avg_pool_3x3', 'avg_pool_5x5', 'avg_pool_7x7', 
                   'skip_connect', 
                   'conv_1x1', 'conv_3x3', 'conv_5x5', 'conv_7x7', 
                   'sep_conv_3x3', 'sep_conv_5x5', 'sep_conv_7x7', 
@@ -49,7 +49,51 @@ class _SampleLayer(nn.Module):
                   'group_8_conv_3x3', 'group_8_conv_5x5', 'group_8_conv_7x7', 
                   'conv_3x1_1x3', 'conv_5x1_1x5', 'conv_7x1_1x7', 
                   'van_conv_3x3', 'van_conv_5x5', 'van_conv_7x7']
-    # simplified ops
+    # remove 7x7
+    # SAMPLE_OPS = ['none',  
+    #                 'avg_pool_3x3', 'avg_pool_5x5', 
+    #                 'skip_connect',
+    #                 'conv_1x1', 'conv_3x3', 'conv_5x5',
+    #                 'sep_conv_3x3', 'sep_conv_5x5',
+    #                 'dil_conv_3x3', 'dil_conv_5x5',
+    #                 'dil_sep_conv_3x3', 'dil_sep_conv_5x5',
+    #                 'group_8_conv_3x3', 'group_8_conv_5x5',
+    #                 'conv_3x1_1x3', 'conv_5x1_1x5',
+    #                 'van_conv_3x3', 'van_conv_5x5']
+    # remove avg_pool
+    # SAMPLE_OPS = ['none', 
+    #               'skip_connect', 
+    #               'conv_1x1', 'conv_3x3', 'conv_5x5', 'conv_7x7', 
+    #               'sep_conv_3x3', 'sep_conv_5x5', 'sep_conv_7x7', 
+    #               'dil_conv_3x3', 'dil_conv_5x5', 'dil_conv_7x7', 
+    #               'dil_sep_conv_3x3', 'dil_sep_conv_5x5', 'dil_sep_conv_7x7', 
+    #               'group_8_conv_3x3', 'group_8_conv_5x5', 'group_8_conv_7x7', 
+    #               'conv_3x1_1x3', 'conv_5x1_1x5', 'conv_7x1_1x7', 
+    #               'van_conv_3x3', 'van_conv_5x5', 'van_conv_7x7']
+    # remove 3x3, 5x5
+    # SAMPLE_OPS = ['none',
+    #               'avg_pool_7x7',
+    #               'skip_connect',
+    #               'conv_1x1', 'conv_7x7',
+    #               'sep_conv_7x7',
+    #               'dil_conv_7x7',
+    #               'dil_sep_conv_7x7',
+    #               'group_8_conv_7x7',
+    #               'conv_7x1_1x7',
+    #               'van_conv_7x7']
+    # remove 3x3, 7x7
+    # SAMPLE_OPS = ['none',
+    #               'avg_pool_5x5',
+    #               'skip_connect',
+    #               'conv_1x1', 'conv_5x5',
+    #               'sep_conv_5x5',
+    #               'dil_conv_5x5',
+    #               'dil_sep_conv_5x5',
+    #               'group_8_conv_5x5',
+    #               'conv_5x1_1x5',
+    #               'van_conv_5x5']
+
+    # remove 5x5, 7x7
     # SAMPLE_OPS = ['none',
     #               'avg_pool_3x3',
     #               'skip_connect',
@@ -76,6 +120,7 @@ class _SampleLayer(nn.Module):
         self.nonlinear = nn.LayerChoice([nn.Identity(), nn.Hardswish()])
         # self.nonlinear = nn.ModuleList([nn.Identity(), nn.Hardswish()])
         # self.beta = nn.Parameter(torch.rand(2))
+        self.softmax = nn.Softmax(dim=-1)
 
     def freeze(self, topk=1):
         _, indices = torch.topk(self.alpha, topk)
@@ -88,12 +133,22 @@ class _SampleLayer(nn.Module):
     def reset_clamp(self, clamp):
         self.clamp = clamp
 
+    def replace_zero_layers(self, threshold=1e-2):
+        # print(self.alpha)
+        # print(self.softmax(self.alpha))
+        # Iterate through paths and alpha
+        for i, (path, alpha) in enumerate(zip(self.paths, self.softmax(self.alpha))):
+            # Replace the path with a ZeroLayer if alpha is below the threshold
+            if alpha.item() < threshold:
+                self.paths[i] = ZeroLayer()
+        # self.softmax = nn.Identity()
+
     def forward(self, x: Tensor) -> Tensor:
-        # weights = F.softmax(self.alpha, dim=-1)
-        if self.clamp:
-            weights = self.alpha.clone().clamp(0, 1)
-        else:
-            weights = self.alpha.clone()
+        weights = self.softmax(self.alpha)
+        # if self.clamp:
+        #     weights = self.alpha.clone().clamp(0, 1)
+        # else:
+        #     weights = self.alpha.clone()
         out = None
         for idx, _ in enumerate(self.paths):
             if out is None:

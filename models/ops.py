@@ -112,6 +112,14 @@ OPS = {
 }
 
 
+class ZeroLayer(nn.Module):
+    def __init__(self):
+        super(ZeroLayer, self).__init__()
+
+    def forward(self, x):
+        return torch.zeros_like(x)
+    
+    
 class ConvBN(nn.Sequential):
 
     def __init__(self, C_in, C_out, kernel_size, stride, padding, affine=True):

@@ -80,21 +80,21 @@ if __name__ == "__main__":
             "exported_arch_path {} should be a file.".format(args.exported_arch_path)
         with fixed_arch(args.exported_arch_path):
             model = get_nas_network(args)
-            with open(args.exported_arch_path.rstrip('.json') + '.o', 'rb') as f:
-                state_dict = pickle.load(f)
-                new_state_dict = {}
-                for k, v in state_dict.items():
-                    if 'samplelayer' in k and 'alpha' in k:
-                        new_state_dict[k] = v
-                model.load_state_dict(new_state_dict, strict=False)
-                print('std_pruning: {}, clamp: {}'.format(args.std_pruning, args.clamp))
-                from models.supermodel import _SampleLayer
-                for _, module in model.named_modules():
-                    if isinstance(module, _SampleLayer):
-                        if args.std_pruning:
-                            module.freeze(args.branches)
-                        else:
-                            module.reset_clamp(args.clamp)
+            # with open(args.exported_arch_path.rstrip('.json') + '.o', 'rb') as f:
+            #     state_dict = pickle.load(f)
+            #     new_state_dict = {}
+            #     for k, v in state_dict.items():
+            #         if 'samplelayer' in k and 'alpha' in k:
+            #             new_state_dict[k] = v
+            #     model.load_state_dict(new_state_dict, strict=False)
+            #     print('std_pruning: {}, clamp: {}'.format(args.std_pruning, args.clamp))
+            #     from models.supermodel import _SampleLayer
+            #     for _, module in model.named_modules():
+            #         if isinstance(module, _SampleLayer):
+            #             if args.std_pruning:
+            #                 module.freeze(args.branches)
+            #             else:
+            #                 module.reset_clamp(args.clamp)
     else:
         model = get_nas_network(args)
 
