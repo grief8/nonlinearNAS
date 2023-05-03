@@ -10,6 +10,8 @@ from nni.retiarii.oneshot.pytorch.utils import AverageMeter
 from torch.utils.tensorboard import SummaryWriter
 from utils import config
 from utils.tools import get_relu_count
+from models.supermodel import _SampleLayer
+
 
 def cross_entropy_with_label_smoothing(pred, target, label_smoothing=0.1):
     logsoftmax = nn.LogSoftmax()
@@ -62,7 +64,6 @@ class Retrain:
             #         print(k, v)
         # remove softmax and replace branches with low contribution with ZeroLayer
         for _, module in self.model.named_modules():
-            from models.supermodel import _SampleLayer
             if isinstance(module, _SampleLayer):
                 module.replace_zero_layers()
         self.export_path += '-retrain'        
@@ -121,6 +122,11 @@ class Retrain:
                 loss = students_loss + distillation_loss 
             else:
                 loss = students_loss
+            l1_reg = 0
+            for _, module in self.model.named_modules():
+                if isinstance(module, _SampleLayer):
+                    l1_reg += torch.sum(torch.abs(module.alpha))
+            loss += l1_reg * 0.001
             acc1, acc5 = accuracy(output, labels, topk=(1, 5))
             losses.update(loss, images.size(0))
             top1.update(acc1[0], images.size(0))
