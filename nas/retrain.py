@@ -56,7 +56,7 @@ class Retrain:
         self.export_path = export_path.rstrip('.pth') + '-' + str(count) + '.pth'
         if os.path.exists(export_path):
             st = torch.load(export_path)
-            model.load_state_dict(st)
+            self.model.load_state_dict(st)
         # knowledge distillation
         self.teacher = teacher
         self.temp = 4
