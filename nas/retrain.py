@@ -125,8 +125,8 @@ class Retrain:
             l1_reg = 0
             for _, module in self.model.named_modules():
                 if isinstance(module, _SampleLayer):
-                    l1_reg += torch.sum(torch.abs(module.alpha))
-            loss += l1_reg * 0.001
+                    l1_reg += torch.var(module.alpha)
+            loss -= l1_reg * 0.001
             acc1, acc5 = accuracy(output, labels, topk=(1, 5))
             losses.update(loss, images.size(0))
             top1.update(acc1[0], images.size(0))
