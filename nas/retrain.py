@@ -66,7 +66,7 @@ class Retrain:
         for _, module in self.model.named_modules():
             if isinstance(module, _SampleLayer):
                 module.replace_zero_layers()
-        self.export_path += '-retrain'        
+        self.export_path += '-var'        
         print('The export path is: ', self.export_path)
         # knowledge distillation
         self.teacher = teacher
