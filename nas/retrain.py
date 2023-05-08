@@ -55,18 +55,20 @@ class Retrain:
         print('The input data shape is: ', self.data_shape)
         count = get_relu_count(self.model, self.data_shape)
         print('The relu count of current model is: ', count)
-        self.export_path = export_path.rstrip('.pth') + '-' + str(count) + '.pth'
+        self.export_path = export_path.rstrip('.pth') + '-' + str(count) + '.pth-var'
+        print('The loading path is: ', self.export_path)
         if os.path.exists(self.export_path):
             st = torch.load(self.export_path)
-            self.model.load_state_dict(st)
+            self.model.load_state_dict(st, strict=False)
             # for k, v in st.items():
             #     if 'samplelayer' in k and 'alpha' in k:
             #         print(k, v)
         # remove softmax and replace branches with low contribution with ZeroLayer
         for _, module in self.model.named_modules():
             if isinstance(module, _SampleLayer):
-                module.replace_zero_layers()
-        self.export_path += '-var'        
+                module.replace_zero_layers(1e-4)
+        self.export_path += '1e-4'  
+        self.spatial_trainable = False      
         print('The export path is: ', self.export_path)
         # knowledge distillation
         self.teacher = teacher
@@ -122,11 +124,12 @@ class Retrain:
                 loss = students_loss + distillation_loss 
             else:
                 loss = students_loss
-            l1_reg = 0
-            for _, module in self.model.named_modules():
-                if isinstance(module, _SampleLayer):
-                    l1_reg += torch.var(module.alpha)
-            loss -= l1_reg * 0.001
+            if self.spatial_trainable:
+                l1_reg = 0
+                for _, module in self.model.named_modules():
+                    if isinstance(module, _SampleLayer):
+                        l1_reg += torch.var(module.alpha)
+                loss -= l1_reg * 0.001
             acc1, acc5 = accuracy(output, labels, topk=(1, 5))
             losses.update(loss, images.size(0))
             top1.update(acc1[0], images.size(0))

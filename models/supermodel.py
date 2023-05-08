@@ -134,8 +134,8 @@ class _SampleLayer(nn.Module):
         self.clamp = clamp
 
     def replace_zero_layers(self, threshold=1e-2):
-        # print(self.alpha)
-        # print(self.softmax(self.alpha))
+        print(self.alpha)
+        print(self.softmax(self.alpha))
         # Iterate through paths and alpha
         for i, (path, alpha) in enumerate(zip(self.paths, self.softmax(self.alpha))):
             # Replace the path with a ZeroLayer if alpha is below the threshold
