@@ -23,33 +23,33 @@ class Swish(nn.Module):
 
 
 class _SampleLayer(nn.Module):
-    # SAMPLE_OPS = [
-    #     'skip_connect',
-    #     'conv_3x3',
-    #     'conv_1x1',
-    #     'sep_conv_3x3',
-    #     'sep_conv_5x5',
-    #     # 'sep_conv_7x7',
-    #     'dil_conv_3x3',
-    #     'avg_pool_3x3',
-    #     # 'max_pool_3x3',
-    #     'dil_sep_conv_3x3',
-    #     'conv_3x1_1x3',
-    #     'conv_7x1_1x7',
-    #     'van_conv_3x3'
-    # ]
+    SAMPLE_OPS = [
+        'skip_connect',
+        'conv_3x3',
+        'conv_1x1',
+        'sep_conv_3x3',
+        'sep_conv_5x5',
+        # 'sep_conv_7x7',
+        'dil_conv_3x3',
+        'avg_pool_3x3',
+        # 'max_pool_3x3',
+        'dil_sep_conv_3x3',
+        'conv_3x1_1x3',
+        'conv_7x1_1x7',
+        'van_conv_3x3'
+    ]
     # all ops
-    SAMPLE_OPS = ['none', 
-                  'avg_pool_3x3', 'avg_pool_5x5', 'avg_pool_7x7', 
-                  'skip_connect', 
-                  'conv_1x1', 'conv_3x3', 'conv_5x5', 'conv_7x7', 
-                  'sep_conv_3x3', 'sep_conv_5x5', 'sep_conv_7x7', 
-                  'dil_conv_3x3', 'dil_conv_5x5', 'dil_conv_7x7', 
-                  'dil_sep_conv_3x3', 'dil_sep_conv_5x5', 'dil_sep_conv_7x7', 
-                  'group_8_conv_3x3', 'group_8_conv_5x5', 'group_8_conv_7x7', 
-                  'conv_3x1_1x3', 'conv_5x1_1x5', 'conv_7x1_1x7', 
-                  'van_conv_3x3', 'van_conv_5x5', 'van_conv_7x7']
-    # remove 7x7
+    # SAMPLE_OPS = ['none', 
+    #               'avg_pool_3x3', 'avg_pool_5x5', 'avg_pool_7x7', 
+    #               'skip_connect', 
+    #               'conv_1x1', 'conv_3x3', 'conv_5x5', 'conv_7x7', 
+    #               'sep_conv_3x3', 'sep_conv_5x5', 'sep_conv_7x7', 
+    #               'dil_conv_3x3', 'dil_conv_5x5', 'dil_conv_7x7', 
+    #               'dil_sep_conv_3x3', 'dil_sep_conv_5x5', 'dil_sep_conv_7x7', 
+    #               'group_8_conv_3x3', 'group_8_conv_5x5', 'group_8_conv_7x7', 
+    #               'conv_3x1_1x3', 'conv_5x1_1x5', 'conv_7x1_1x7', 
+    #               'van_conv_3x3', 'van_conv_5x5', 'van_conv_7x7']
+    # # remove 7x7
     # SAMPLE_OPS = ['none',  
     #                 'avg_pool_3x3', 'avg_pool_5x5', 
     #                 'skip_connect',
@@ -263,6 +263,13 @@ class Supermodel(nn.Module):
                                     padding=3, bias=False)),
                 ('norm0', nn.BatchNorm2d(num_init_features)),
             ]))
+        elif dataset == 'tiny':
+            init_stride = 2
+            self.features = nn.Sequential(OrderedDict([
+                ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=init_stride,
+                                    padding=1, bias=False)),
+                ('norm0', nn.BatchNorm2d(num_init_features)),
+            ]))
         else:
             self.features = nn.Sequential(OrderedDict([
                 ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=1,
@@ -347,3 +354,7 @@ def cifarsupermodel50(num_classes: int = 100, pretrained: bool = False):
 
 def cifarsupermodel101(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(3, 4, 23, 3), num_classes=num_classes)
+
+
+def tinysupermodel50(num_classes: int = 200, pretrained: bool = False):
+    return Supermodel(dataset='tiny', block_config=(3, 4, 6, 3), num_classes=num_classes)
