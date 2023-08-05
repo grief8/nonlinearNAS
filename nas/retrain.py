@@ -147,9 +147,10 @@ class Retrain:
             if i % 10 == 0 or i + 1 == len(self.train_loader):
                 batch_log = train_log_func(i, batch_time, data_time, losses, top1, top5, new_lr)
                 # print(batch_log)
+                # print(batch_log)
         return top1, top5
 
-    def train(self, validation_frequency=5):
+    def train(self, validation_frequency=1):
         best_acc = 0
         nBatch = len(self.train_loader)
 
@@ -179,6 +180,7 @@ class Retrain:
             return new_lr
 
         for epoch in range(self.n_epochs):
+            # print('\n', '-' * 30, 'Train epoch: %d' % (epoch + 1), '-' * 30, '\n')
             # print('\n', '-' * 30, 'Train epoch: %d' % (epoch + 1), '-' * 30, '\n')
             end = time.time()
             train_top1, train_top5 = self.train_one_epoch(
@@ -247,5 +249,5 @@ class Retrain:
                                         'Top-1 acc {top1.val:.3f} ({top1.avg:.3f})'.\
                         format(i, len(data_loader) - 1, batch_time=batch_time, loss=losses, top1=top1)
                     test_log += '\tTop-5 acc {top5.val:.3f} ({top5.avg:.3f})'.format(top5=top5)
-                    print(test_log)
+                    # print(test_log)
         return losses.avg, top1.avg, top5.avg

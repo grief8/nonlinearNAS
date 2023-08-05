@@ -5,6 +5,7 @@ import os
 import logging
 import pickle
 import time
+import math
 
 import torch
 import torch.nn as nn
@@ -14,6 +15,7 @@ from nni.retiarii.oneshot.interface import BaseOneShotTrainer
 from nni.retiarii.oneshot.pytorch.utils import AverageMeterGroup, replace_layer_choice, replace_input_choice, to_device
 
 from nas.estimator import NonlinearLatencyEstimator, _get_module_with_type
+from utils.tools import get_relu_count
 
 _logger = logging.getLogger(__name__)
 torch.autograd.set_detect_anomaly(True)
@@ -106,9 +108,33 @@ class ProxylessLayerChoice(nn.Module):
         return F.softmax(self.alpha, dim=-1)
 
 
-class ProxylessInputChoice(nn.Module):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError('Input choice is not supported for ProxylessNAS.')
+class DartsInputChoice(nn.Module):
+    def __init__(self, input_choice):
+        super(DartsInputChoice, self).__init__()
+        self.name = input_choice.label
+        self.alpha = nn.Parameter(torch.randn(input_choice.n_candidates) * 1e-3)
+        self.n_chosen = input_choice.n_chosen or 1
+
+    def forward(self, inputs):
+        inputs = torch.stack(inputs)
+        alpha_shape = [-1] + [1] * (len(inputs.size()) - 1)
+        return torch.sum(inputs * F.softmax(self.alpha, -1).view(*alpha_shape), 0)
+
+    def parameters(self):
+        for _, p in self.named_parameters():
+            yield p
+
+    def named_parameters(self):
+        for name, p in super(DartsInputChoice, self).named_parameters():
+            if name == 'alpha':
+                continue
+            yield name, p
+
+    def export(self):
+        return torch.argsort(-self.alpha).cpu().numpy().tolist()[:self.n_chosen]
+
+    def export_prob(self):
+        return F.softmax(self.alpha, dim=-1)
 
 
 class ProxylessTrainer(BaseOneShotTrainer):
@@ -165,7 +191,8 @@ class ProxylessTrainer(BaseOneShotTrainer):
                  arc_learning_rate=1.0E-3,
                  grad_reg_loss_type=None, grad_reg_loss_params=None,
                  applied_hardware=None, dummy_input=(1, 3, 224, 224),
-                 checkpoint_path=None, strategy='latency',
+                 checkpoint_path=None, 
+                 ref_latency=None,
                  teacher=None):
         self.model = model
         self.loss = loss
@@ -196,8 +223,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
         if not applied_hardware:
             applied_hardware = {'Hardswish': 3.0, 'ReLU': 3.0, 'PReLU': 3.0, 'Conv2d': 0.5, 'AvgPool2d': 0.1, 'BatchNorm2d': 0.05, 'Linear': 0.4,
                                 'communication': 2.0, 'LayerChoice': 0.0}
-        self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input,
-                                                           target=strategy)
+        self.latency_estimator = NonlinearLatencyEstimator(applied_hardware, self.model, dummy_input)
 
         self.reg_loss_type = grad_reg_loss_type
         self.reg_loss_params = {} if grad_reg_loss_params is None else grad_reg_loss_params
@@ -205,15 +231,20 @@ class ProxylessTrainer(BaseOneShotTrainer):
         self.model = torch.nn.DataParallel(self.model)
         self.model.to(self.device)
         self.nas_modules = []
+        self.darts_modules = []
         replace_layer_choice(self.model, ProxylessLayerChoice, self.nas_modules)
-        replace_input_choice(self.model, ProxylessInputChoice, self.nas_modules)
+        replace_input_choice(self.model, DartsInputChoice, self.darts_modules)
         for _, module in self.nas_modules:
+            module.to(self.device)
+        for _, module in self.darts_modules:
             module.to(self.device)
         self.non_ops = _get_module_with_type(self.model, [nn.Hardswish], [])
 
-        current_architecture_prob = self._get_arch_relu()
-        # relu_count because prelu is init to 0.25
-        self.ref_latency = self.latency_estimator.cal_expected_latency(current_architecture_prob)
+        # get minimal relu count 
+        if ref_latency is None:
+            self.ref_latency = get_relu_count(self.model, dummy_input[1:])
+        else:
+            self.ref_latency = ref_latency
 
         self.obj_path = self.checkpoint_path.rstrip('.json') + '.o'
         if os.path.exists(self.obj_path):
@@ -281,7 +312,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
             metrics = self.metrics(logits, trn_y)
             metrics["loss"] = loss.item()
             if self.latency_estimator:
-                metrics["latency"] = self._export_latency()
+                metrics["nonlinear_count"] = self._export_latency()
             meters.update(metrics)
             print("Epoch [%s/%s] Step [%s/%s]  %s", epoch + 1,
                              self.num_epochs, step + 1, len(self.train_loader), meters)
@@ -314,15 +345,14 @@ class ProxylessTrainer(BaseOneShotTrainer):
         expected_latency = self.latency_estimator.cal_expected_latency(current_architecture_prob)
 
         if self.reg_loss_type == 'mul#log':
-            import math
             alpha = self.reg_loss_params.get('alpha', 1)
             beta = self.reg_loss_params.get('beta', 0.6)
             # noinspection PyUnresolvedReferences
             reg_loss = (math.log(expected_latency) / math.log(self.ref_latency)) ** beta
             return logits, alpha * ce_loss * reg_loss
         elif self.reg_loss_type == 'add#linear':
-            reg_lambda = self.reg_loss_params.get('lambda', 2e-1)
-            reg_loss = reg_lambda * (expected_latency - self.ref_latency) / self.ref_latency
+            reg_lambda = self.reg_loss_params.get('lambda')
+            reg_loss = reg_lambda * abs(expected_latency - self.ref_latency)
             return logits, ce_loss + reg_loss
         elif self.reg_loss_type is None:
             return logits, ce_loss
@@ -372,6 +402,9 @@ class ProxylessTrainer(BaseOneShotTrainer):
         for name, module in self.nas_modules:
             if name not in result:
                 result[name] = module.export()
+        for name, module in self.darts_modules:
+            if name not in result:
+                result[name] = module.export()
         return result
 
     @torch.no_grad()
@@ -380,4 +413,38 @@ class ProxylessTrainer(BaseOneShotTrainer):
         for name, module in self.nas_modules:
             if name not in result:
                 result[name] = module.export_prob().tolist()
+        for name, module in self.darts_modules:
+            if name not in result:
+                result[name] = module.export_prob().tolist()
+        return result
+    
+    @torch.no_grad()
+    def export_avg(self):
+        result = dict()
+        for name, module in self.nas_modules:
+            if name not in result:
+                result[name] = module.export()
+        for name, module in self.darts_modules:
+            if name not in result:
+                data = module.export_prob()
+                threshold = torch.mean(data, dim=0)
+                greater_than_threshold = torch.gt(data, threshold)
+                # 使用 torch.where 函数获取大于阈值的索引
+                result[name] = torch.where(greater_than_threshold)[0].tolist()
+        return result
+
+    def export_top(self, topk_layer=1, topk_block=1):
+        result = dict()
+        for name, module in self.nas_modules:
+            if name not in result:
+                result[name] = module.export()
+        for name, module in self.darts_modules:
+                if name not in result:
+                    choices = torch.argsort(-module.alpha).cpu().numpy().tolist()
+                    topk_layer = len(choices) if topk_layer > len(choices) or topk_layer == -1 else topk_layer
+                    topk_block = len(choices) if topk_block > len(choices) or topk_block == -1 else topk_block
+                    if len(choices) == 11:
+                        result[name] = choices[:topk_layer]
+                    else:
+                        result[name] = choices[:topk_block]
         return result
