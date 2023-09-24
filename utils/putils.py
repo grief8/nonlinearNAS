@@ -197,6 +197,9 @@ def get_nas_network(args, class_flag=False):
     elif args.net == 'searchcifarsupermodel161':
         from models.supermodel import cifarsupermodel161
         net = cifarsupermodel161
+    elif args.net == 'searchtinysupermodel50':
+        from models.supermodel import tinysupermodel50
+        net = tinysupermodel50
 
     elif args.net == 'searchmanumodel16':
         from models.manumodel import supermodel16
@@ -286,8 +289,11 @@ class BinaryPReLu(nn.Module):
 def reproduce_model(model, threshold=0.5):
     for name, param in model.named_parameters():
         if 'alpha' in name:
-            values, _ = torch.max(param.data, dim=0)
-            threshold = values * threshold
+            # print(name)
+            # print(param)
+            threshold = torch.mean(param.data, dim=0)
+            # values, _ = torch.max(param.data, dim=0)
+            # threshold = values * threshold
             alpha = torch.where(param.data > threshold, torch.ones_like(param.data), torch.zeros_like(param.data))
             param.data.copy_(alpha)
             param.requires_grad = False

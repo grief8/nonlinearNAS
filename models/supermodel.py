@@ -23,33 +23,33 @@ class Swish(nn.Module):
 
 
 class _SampleLayer(nn.Module):
-    # SAMPLE_OPS = [
-    #     'skip_connect',
-    #     'conv_3x3',
-    #     'conv_1x1',
-    #     'sep_conv_3x3',
-    #     'sep_conv_5x5',
-    #     # 'sep_conv_7x7',
-    #     'dil_conv_3x3',
-    #     'avg_pool_3x3',
-    #     # 'max_pool_3x3',
-    #     'dil_sep_conv_3x3',
-    #     'conv_3x1_1x3',
-    #     'conv_7x1_1x7',
-    #     'van_conv_3x3'
-    # ]
+    SAMPLE_OPS = [
+        'skip_connect',
+        'conv_3x3',
+        'conv_1x1',
+        'sep_conv_3x3',
+        'sep_conv_5x5',
+        # 'sep_conv_7x7',
+        'dil_conv_3x3',
+        'avg_pool_3x3',
+        # 'max_pool_3x3',
+        'dil_sep_conv_3x3',
+        'conv_3x1_1x3',
+        'conv_7x1_1x7',
+        'van_conv_3x3'
+    ]
     # all ops
-    SAMPLE_OPS = ['none', 
-                  'avg_pool_3x3', 'avg_pool_5x5', 'avg_pool_7x7', 
-                  'skip_connect', 
-                  'conv_1x1', 'conv_3x3', 'conv_5x5', 'conv_7x7', 
-                  'sep_conv_3x3', 'sep_conv_5x5', 'sep_conv_7x7', 
-                  'dil_conv_3x3', 'dil_conv_5x5', 'dil_conv_7x7', 
-                  'dil_sep_conv_3x3', 'dil_sep_conv_5x5', 'dil_sep_conv_7x7', 
-                  'group_8_conv_3x3', 'group_8_conv_5x5', 'group_8_conv_7x7', 
-                  'conv_3x1_1x3', 'conv_5x1_1x5', 'conv_7x1_1x7', 
-                  'van_conv_3x3', 'van_conv_5x5', 'van_conv_7x7']
-    # remove 7x7
+    # SAMPLE_OPS = ['none', 
+    #               'avg_pool_3x3', 'avg_pool_5x5', 'avg_pool_7x7', 
+    #               'skip_connect', 
+    #               'conv_1x1', 'conv_3x3', 'conv_5x5', 'conv_7x7', 
+    #               'sep_conv_3x3', 'sep_conv_5x5', 'sep_conv_7x7', 
+    #               'dil_conv_3x3', 'dil_conv_5x5', 'dil_conv_7x7', 
+    #               'dil_sep_conv_3x3', 'dil_sep_conv_5x5', 'dil_sep_conv_7x7', 
+    #               'group_8_conv_3x3', 'group_8_conv_5x5', 'group_8_conv_7x7', 
+    #               'conv_3x1_1x3', 'conv_5x1_1x5', 'conv_7x1_1x7', 
+    #               'van_conv_3x3', 'van_conv_5x5', 'van_conv_7x7']
+    # # remove 7x7
     # SAMPLE_OPS = ['none',  
     #                 'avg_pool_3x3', 'avg_pool_5x5', 
     #                 'skip_connect',
@@ -115,8 +115,8 @@ class _SampleLayer(nn.Module):
         # extract feature from low dimension
         self.paths = nn.ModuleList([nn.Sequential(OPS[op](inplanes, 1, True), DropPath_()) for op in self.SAMPLE_OPS])
         # self.paths = nn.LayerChoice([OPS[op](inplanes, 1, True) for op in self.SAMPLE_OPS])
-        # self.input_switch = nn.InputChoice(n_candidates=len(self.SAMPLE_OPS), n_chosen=4, reduction='sum')
-        self.alpha = nn.Parameter(torch.rand(len(self.SAMPLE_OPS)) * 1E-3)
+        self.input_switch = nn.InputChoice(n_candidates=len(self.SAMPLE_OPS), n_chosen=4, reduction='sum')
+        # self.alpha = nn.Parameter(torch.rand(len(self.SAMPLE_OPS)) * 1E-3)
         self.nonlinear = nn.LayerChoice([nn.Identity(), nn.Hardswish()])
         # self.nonlinear = nn.ModuleList([nn.Identity(), nn.Hardswish()])
         # self.beta = nn.Parameter(torch.rand(2))
@@ -144,17 +144,19 @@ class _SampleLayer(nn.Module):
         # self.softmax = nn.Identity()
 
     def forward(self, x: Tensor) -> Tensor:
+<<<<<<< HEAD
         weights = self.softmax(self.alpha)
         # if self.clamp:
         #     weights = self.alpha.clone().clamp(0, 1)
         # else:
         #     weights = self.alpha.clone()
         out = None
+=======
+        out = []
+>>>>>>> pruning
         for idx, _ in enumerate(self.paths):
-            if out is None:
-                out = self.paths[idx](x) * weights[idx]
-            else:
-                out = out + self.paths[idx](x) * weights[idx]
+            out.append(self.paths[idx](x))
+        out = self.input_switch(out) 
         out = self.nonlinear(out)    
         # out = self.nonlinear[0](out) * self.beta[0] + self.nonlinear[1](out) * self.beta[1] 
         # out = []
@@ -215,7 +217,7 @@ class AggregateBlock(nn.Module):
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Hardswish(inplace=True)
         )
-        self.alpha = nn.Parameter(torch.rand(len(self.layers)) * 1E-3)
+        self.input_switch = nn.InputChoice(n_candidates=len(self.layers), n_chosen=2, reduction='sum')
 
     def freeze(self, topk=1):
         if topk == -1:
@@ -231,14 +233,10 @@ class AggregateBlock(nn.Module):
 
     def forward(self, x: List) -> Tensor:
         # weights = F.softmax(self.alpha, dim=-1)
-        weights = self.alpha
-        out = None
+        out = []
         for idx, _ in enumerate(self.layers):
-            if out is None:
-                out = self.layers[idx](x[idx]) * weights[idx]
-            else:
-                out = out + self.layers[idx](x[idx]) * weights[idx]
-
+            out.append(self.layers[idx](x[idx]))
+        out = self.input_switch(out) 
         out = self.nonlinear(out)
         return out
 
@@ -261,6 +259,13 @@ class Supermodel(nn.Module):
             self.features = nn.Sequential(OrderedDict([
                 ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=init_stride,
                                     padding=3, bias=False)),
+                ('norm0', nn.BatchNorm2d(num_init_features)),
+            ]))
+        elif dataset == 'tiny':
+            init_stride = 2
+            self.features = nn.Sequential(OrderedDict([
+                ('conv0', nn.Conv2d(3, num_init_features, kernel_size=3, stride=init_stride,
+                                    padding=1, bias=False)),
                 ('norm0', nn.BatchNorm2d(num_init_features)),
             ]))
         else:
@@ -347,3 +352,7 @@ def cifarsupermodel50(num_classes: int = 100, pretrained: bool = False):
 
 def cifarsupermodel101(num_classes: int = 100, pretrained: bool = False):
     return Supermodel(dataset='cifar', block_config=(3, 4, 23, 3), num_classes=num_classes)
+
+
+def tinysupermodel50(num_classes: int = 200, pretrained: bool = False):
+    return Supermodel(dataset='tiny', block_config=(3, 4, 6, 3), num_classes=num_classes)

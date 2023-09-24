@@ -47,16 +47,16 @@ function run_proxylessnas() {
   mkdir -p "${dir}"
   python main.py  \
   --net "${model}" \
-  --dataset "${dataset}" \
+  --dataset cifar100 \
   --data_path ~/data/ \
   --grad_reg_loss_type "${lossType}" \
   --worker_id "$wid" \
   --pretrained \
-  --epochs 100 \
+  --epochs 150 \
   --train_batch_size "${batch}" \
   --ref_latency "${count}" \
   --checkpoint_path "${dir}"/arch_path.pt \
-  --exported_arch_path "${dir}"/checkpoint2.json \
+  --exported_arch_path "${dir}"/checkpoint2_"${7}".json \
   --train_mode "$4" \
   --kd_teacher_path ~/projects/nonlinearNAS/checkpoints/teacher/cifar_resnet152.pth
 }
@@ -66,4 +66,4 @@ function run_proxylessnas() {
 #done;
 #run_proxylessnas "$1" add#linear 0  "$2" "$3" &
 #run_proxylessnas "$1" mul#log 0 "$2" "$3"
-run_proxylessnas "$1" add#linear 0,1,2,3,4,5,6,7 "$2" "$3" "$4" "$5"
+run_proxylessnas "$1" add#linear 0,1,2,3 "$2" "$3" "$4" "$5"
