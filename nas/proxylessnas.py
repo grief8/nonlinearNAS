@@ -5,6 +5,7 @@ import os
 import logging
 import pickle
 import time
+from models.supermodel import _SampleLayer
 
 import torch
 import torch.nn as nn
@@ -321,7 +322,7 @@ class ProxylessTrainer(BaseOneShotTrainer):
             reg_loss = (math.log(expected_latency) / math.log(self.ref_latency)) ** beta
             return logits, alpha * ce_loss * reg_loss
         elif self.reg_loss_type == 'add#linear':
-            reg_lambda = self.reg_loss_params.get('lambda', 2e-1)
+            reg_lambda = self.reg_loss_params.get('lambda', 1e-1)
             reg_loss = reg_lambda * (expected_latency - self.ref_latency) / self.ref_latency
             return logits, ce_loss + reg_loss
         elif self.reg_loss_type is None:
@@ -333,6 +334,11 @@ class ProxylessTrainer(BaseOneShotTrainer):
         ''' return logits and loss for weight parameter update '''
         logits = self.model(X)
         loss = self.loss(logits, y)
+        l1_reg = 0
+        for _, module in self.model.named_modules():
+            if isinstance(module, _SampleLayer):
+                l1_reg += torch.var(module.alpha)
+        loss -= l1_reg * 0.001
         # teacher model
         if self.teacher is not None:
             with torch.no_grad():
