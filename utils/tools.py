@@ -266,6 +266,23 @@ def predict_throughput(model, hardware, input_size, batch_size=-1, device="cuda"
     return total, stages
 
 
+def get_forward_size(model, input_size, batch_size=-1, device="cuda", ops=None):
+    if ops is None:
+        ops = nonlinear_ops
+    summary = model_summary(model, input_size, batch_size, device)
+    total = 0.0
+    for layer in summary:
+        nonlinear_flag = False
+        key = layer.split('-')[0]
+        for op in ops:
+            if layer.find(op) != -1:
+                nonlinear_flag = True
+                break
+        if not nonlinear_flag:
+            total += size2memory(summary[layer]["output_shape"])
+    return total
+
+
 def get_relu_count(model, input_size, batch_size=-1, device="cuda", ops=None):
     if ops is None:
         ops = ['ReLU', 'PReLU', 'Hardswish']

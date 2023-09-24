@@ -50,6 +50,8 @@ def summary(model, input_size, batch_size=-1, device="cuda"):
         "cpu",
     ], "Input device is not valid, please specify 'cuda' or 'cpu'"
 
+    if torch.cuda.is_available():
+        model = model.to(device)
     if device == "cuda" and torch.cuda.is_available():
         dtype = torch.cuda.FloatTensor
     else:
