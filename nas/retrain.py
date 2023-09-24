@@ -64,11 +64,11 @@ class Retrain:
             #     if 'samplelayer' in k and 'alpha' in k:
             #         print(k, v)
         # remove softmax and replace branches with low contribution with ZeroLayer
-        # for _, module in self.model.named_modules():
-        #     if isinstance(module, _SampleLayer):
-        #         module.replace_zero_layers(1e-5)
-        # self.export_path += '1e-5'  
-        self.spatial_trainable = True      
+        for _, module in self.model.named_modules():
+            if isinstance(module, _SampleLayer):
+                module.replace_zero_layers(1e-5)
+        self.export_path += '1e-5'  
+        self.spatial_trainable = False      
         print('The export path is: ', self.export_path)
         # knowledge distillation
         self.teacher = teacher

@@ -5,6 +5,7 @@ import os
 import logging
 import pickle
 import time
+from models.supermodel import _SampleLayer
 import math
 
 import torch
@@ -363,6 +364,11 @@ class ProxylessTrainer(BaseOneShotTrainer):
         ''' return logits and loss for weight parameter update '''
         logits = self.model(X)
         loss = self.loss(logits, y)
+        l1_reg = 0
+        for _, module in self.model.named_modules():
+            if isinstance(module, _SampleLayer):
+                l1_reg += torch.var(module.alpha)
+        loss -= l1_reg * 0.001
         # teacher model
         if self.teacher is not None:
             with torch.no_grad():
